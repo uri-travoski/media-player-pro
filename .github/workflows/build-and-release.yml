@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -86,28 +88,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install Flatpak & Builder
+      - name: Install Flatpak & Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder elfutils make gcc imagemagick
-          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
-      - name: Install Flatpak Runtime
-        run: |
-          flatpak install --user -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
 
       - name: Build Flatpak Bundle
         run: |
           mkdir -p dist
-          # Build Flatpak bundle with builder
-          flatpak-builder --user --install-deps-from=flathub --force-clean \
-            --repo=repo flatpak_build packaging/flatpak/org.mediaplayerpro.MediaPlayerPro.yaml || true
-          
-          if [ -d repo ]; then
-            flatpak build-bundle repo dist/media-player-pro-1.1.flatpak org.mediaplayerpro.MediaPlayerPro
-          else
-            # Fallback lightweight bundle creation if repo was staged directly
-            echo "Packaging flatpak archive..."
+          # Build Flatpak bundle or portable package archive
+          if [ -f packaging/flatpak/build-flatpak.sh ]; then
+            chmod +x packaging/flatpak/build-flatpak.sh
+            ./packaging/flatpak/build-flatpak.sh dist || true
+          fi
+          if [ ! -f dist/*.flatpak ]; then
             tar -czf dist/media-player-pro-1.1.flatpak.tar.gz packaging/flatpak data scripts config Makefile src
           fi
 
@@ -147,29 +141,6 @@ jobs:
 
           gh release create "$TAG_NAME" release_assets/* \
             --title "Media Player Pro $TAG_NAME" \
-            --notes "### Media Player Pro $TAG_NAME
-
-Modern, high-performance media player based on [mpv](https://github.com/mpv-player/mpv).
-
-#### Features:
-- **Frosted Glass Skin**: Non-obstructive floating frosted glass bottom dock with glowing amber progress bar and scrubber.
-- **Precision Navigation**: 7-second backward (\`-7s\`) and forward (\`+7s\`) skip buttons around the primary Play/Pause button.
-- **Speed Play Dropup**: Instant playback rate switching with \`0.25x\`, \`0.5x\`, \`1.0x (Normal)\`, \`1.25x\`, \`1.5x\`, \`2x\`, \`2.5x\`, and \`3x\` presets.
-- **Smooth Volume Slider**: Bottom-right volume track with interactive handle, percentage readout, and mouse wheel control.
-- **Cursor-Targeted Zoom & Pan**:
-  - \`Ctrl + Mouse Wheel\`: Zoom into the exact part of the video where the mouse pointer is located.
-  - \`Ctrl + Left Drag\`: Pan the video viewport to center any zoomed-in region.
-  - \`Ctrl + 0\` / Middle Click: Reset zoom and pan.
-- **3 Genuine Video Enhancement Levels**:
-  - **Level 1 (Balanced)**: Deband + AMD FidelityFX Contrast-Adaptive Sharpening (CAS 0.35).
-  - **Level 2 (High Clarity)**: Deep Deband + CAS 0.60 + High-quality Lanczos scaling.
-  - **Level 3 (Ultra Fidelity)**: Ultra Deband + CAS 0.85 + Super-Resolution anti-ringing.
-- **3-Second Autohide**: Controls and mouse pointer automatically hide after 3 seconds of non-touch during playback.
-
-#### Included Packages:
-- **AppImage**: \`Media_Player_Pro-1.1-x86_64.AppImage\` (Portable bundle)
-- **Debian/Ubuntu**: \`media-player-pro_1.1_amd64.deb\`
-- **Fedora/RHEL**: \`media-player-pro-1.1-1.x86_64.rpm\`
-- **Flatpak**: \`media-player-pro-1.1.flatpak\`" \
+            --notes-file release_notes.md \
             --draft=false \
-            --prerelease=false || echo "Release already exists or updated."
+            --prerelease=false || echo "Release create returned status $?"

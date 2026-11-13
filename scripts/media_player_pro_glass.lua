@@ -28,6 +28,10 @@ local C_TRACK_BG      = "&H504840&" -- Translucent unplayed track
 local C_HOVER_BG      = "&H2C241E&"
 local C_POPUP_BG      = "&H0F0B09&"
 
+local CURRENT_VERSION = "1.1"
+local GITHUB_REPO     = "uri-travoski/media-player-pro"
+local DEFAULT_RELEASE_URL = "https://github.com/uri-travoski/media-player-pro/releases/latest"
+
 local state = {
     visible = true,
     last_mouse_activity = mp.get_time(),
@@ -51,11 +55,94 @@ local state = {
     speed = 1.0,
     enhancement_level = 0,
     
+    update_available = false,
+    latest_version = CURRENT_VERSION,
+    release_url = DEFAULT_RELEASE_URL,
+    checking_update = false,
+    
     window_w = 1280,
     window_h = 720,
 }
 
 local speeds = { 0.25, 0.5, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0 }
+
+local function open_in_browser(url)
+    url = url or state.release_url or DEFAULT_RELEASE_URL
+    mp.osd_message("Opening latest release in browser...", 2.0)
+    mp.command_native_async({
+        name = "subprocess",
+        args = { "xdg-open", url },
+        detach = true
+    }, function() end)
+end
+
+local function parse_version(v)
+    v = (v or ""):gsub("^v", "")
+    local parts = {}
+    for num in v:gmatch("(%d+)") do
+        table.insert(parts, tonumber(num) or 0)
+    end
+    return parts
+end
+
+local function is_newer_version(latest, current)
+    local l = parse_version(latest)
+    local c = parse_version(current)
+    local n = math.max(#l, #c)
+    for i = 1, n do
+        local l_val = l[i] or 0
+        local c_val = c[i] or 0
+        if l_val > c_val then return true end
+        if l_val < c_val then return false end
+    end
+    return false
+end
+
+local render -- Forward declaration
+
+local function check_for_updates(manual)
+    if state.checking_update then return end
+    state.checking_update = true
+    if manual then
+        mp.osd_message("Checking for updates...", 2.0)
+    end
+
+    mp.command_native_async({
+        name = "subprocess",
+        args = {
+            "curl", "-s", "-m", "5",
+            "-H", "User-Agent: MediaPlayerPro",
+            "https://api.github.com/repos/" .. GITHUB_REPO .. "/releases/latest"
+        },
+        capture_stdout = true
+    }, function(success, res)
+        state.checking_update = false
+        if success and res and res.status == 0 and res.stdout and #res.stdout > 0 then
+            local tag = res.stdout:match('"tag_name"%s*:%s*"([^"]+)"')
+            local html_url = res.stdout:match('"html_url"%s*:%s*"([^"]+)"')
+            if tag then
+                state.latest_version = tag
+                if html_url then state.release_url = html_url end
+                if is_newer_version(tag, CURRENT_VERSION) then
+                    state.update_available = true
+                    mp.osd_message(string.format("▲ Update Available: Media Player Pro %s\nClick 'Update' in menu to download", tag), 4.0)
+                else
+                    state.update_available = false
+                    if manual then
+                        mp.osd_message(string.format("✓ Media Player Pro v%s is up to date", CURRENT_VERSION), 2.5)
+                    end
+                end
+                if render then render() end
+                return
+            end
+        end
+
+        if manual then
+            mp.osd_message("Opening releases page in browser...", 2.0)
+            open_in_browser(DEFAULT_RELEASE_URL)
+        end
+    end)
+end
 
 local function format_time(seconds)
     if not seconds or seconds < 0 then return "00:00" end
@@ -135,7 +222,7 @@ local function inside(px, py, rx, ry, rw, rh)
 end
 
 -- Main Render Function
-local function render()
+render = function()
     if not state.visible then
         overlay.data = ""
         overlay:update()
@@ -360,8 +447,8 @@ local function render()
 
     -- 5. Settings Popover Menu (Matching Attached Reference Popover)
     if state.settings_menu_open then
-        local pop_w = 270
-        local pop_h = 240
+        local pop_w = 280
+        local pop_h = 280
         local pop_x = L.dock_x + L.dock_w - pop_w
         local pop_y = L.dock_y - pop_h - 12
 
@@ -404,14 +491,15 @@ local function render()
             -- Main Settings Menu Items
             local items = {
                 { key = "enhance", label = "✦ Enhance Video ▸", sub = string.format("Level %d", state.enhancement_level) },
-                { key = "audio", label = "🎵 Audio Track ▸", sub = "Cycle" },
-                { key = "sub", label = "💬 Subtitles ▸", sub = "Toggle" },
-                { key = "aspect", label = "📐 Aspect Ratio ▸", sub = "Cycle" },
-                { key = "stats", label = "ℹ Video Statistics", sub = "Display" },
+                { key = "update",  label = state.update_available and "▲ Update Available! ▸" or "🔄 Check for Updates", sub = state.update_available and (state.latest_version or "Download") or ("v" .. CURRENT_VERSION) },
+                { key = "audio",   label = "🎵 Audio Track ▸", sub = "Cycle" },
+                { key = "sub",     label = "💬 Subtitles ▸", sub = "Toggle" },
+                { key = "aspect",  label = "📐 Aspect Ratio ▸", sub = "Cycle" },
+                { key = "stats",   label = "ℹ Video Statistics", sub = "Display" },
             }
 
             for idx, it in ipairs(items) do
-                local item_y = pop_y + 42 + (idx - 1) * 38
+                local item_y = pop_y + 40 + (idx - 1) * 38
                 local is_hover = inside(state.mouse_x, state.mouse_y, pop_x + 8, item_y, pop_w - 16, 34)
 
                 if is_hover then
@@ -419,10 +507,11 @@ local function render()
                         C_HOVER_BG, ass_rect(pop_x + 8, item_y, pop_w - 16, 34, 6)))
                 end
 
+                local label_color = (it.key == "update" and state.update_available) and C_ACCENT or (is_hover and C_ACCENT or C_WHITE)
                 add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs13\\1c%s}%s",
-                    pop_x + 16, item_y + 17, is_hover and C_ACCENT or C_WHITE, it.label))
+                    pop_x + 16, item_y + 17, label_color, it.label))
                 add(string.format("{\\an6\\pos(%d,%d)\\fnDejaVu Sans\\fs12\\1c%s\\1a&H30&}%s",
-                    pop_x + pop_w - 16, item_y + 17, C_TEXT_MUTED, it.sub))
+                    pop_x + pop_w - 16, item_y + 17, (it.key == "update" and state.update_available) and C_ACCENT or C_TEXT_MUTED, it.sub))
             end
         end
     end
@@ -563,12 +652,19 @@ local function on_mouse_button(table)
                     end
                 else
                     -- Main Settings Items
-                    local items = { "enhance", "audio", "sub", "aspect", "stats" }
+                    local items = { "enhance", "update", "audio", "sub", "aspect", "stats" }
                     for idx, key in ipairs(items) do
-                        local item_y = pop_y + 42 + (idx - 1) * 38
+                        local item_y = pop_y + 40 + (idx - 1) * 38
                         if inside(x, y, pop_x, item_y, pop_w, 34) then
                             if key == "enhance" then
                                 state.settings_sub_menu = "enhance"
+                            elseif key == "update" then
+                                if state.update_available then
+                                    open_in_browser(state.release_url)
+                                else
+                                    check_for_updates(true)
+                                end
+                                state.settings_menu_open = false
                             elseif key == "audio" then
                                 mp.commandv("cycle", "audio")
                             elseif key == "sub" then
@@ -755,6 +851,12 @@ mp.add_forced_key_binding("WHEEL_DOWN", "glass_wheel_down", on_wheel_down)
 -- Periodic Autohide Check (every 0.25s)
 mp.add_periodic_timer(0.25, check_autohide)
 
--- Initial Render
+-- Initial Render & Auto Update Check
 wake_up()
 render()
+
+-- Auto check for updates on startup (after 2 seconds)
+mp.add_timeout(2.0, function()
+    check_for_updates(false)
+end)
+
