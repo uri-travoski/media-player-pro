@@ -1,0 +1,13 @@
+# Build outputs
+/media-player-pro
+/dist/
+*.o
+*.AppImage
+*.deb
+*.rpm
+*.flatpak
+
+# Temporary test files
+*.sock
+/tmp/
+.DS_Store

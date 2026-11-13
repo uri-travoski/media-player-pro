@@ -1,0 +1,30 @@
+[Desktop Entry]
+Name=Media Player Pro
+GenericName=Media Player
+Comment=High-performance media player with modern frosted glass skin and video enhancements
+Exec=media-player-pro %U
+Terminal=false
+Type=Application
+Icon=media-player-pro
+Categories=AudioVideo;Player;Video;TV;Audio;
+MimeType=video/mp4;video/x-matroska;video/webm;video/quicktime;video/x-msvideo;video/x-flv;video/mpeg;video/ogg;video/3gpp;audio/mpeg;audio/ogg;audio/flac;audio/x-wav;audio/aac;audio/mp4;x-scheme-handler/mpv;
+StartupNotify=true
+StartupWMClass=media-player-pro
+Keywords=mpv;video;player;movie;glass;hd;media;
+Actions=Play;EnhanceLevel1;EnhanceLevel2;EnhanceLevel3;
+
+[Desktop Action Play]
+Name=Play
+Exec=media-player-pro
+
+[Desktop Action EnhanceLevel1]
+Name=Start with Video Enhancement Level 1 (Balanced)
+Exec=media-player-pro --vf=cas=0.35 --deband=yes
+
+[Desktop Action EnhanceLevel2]
+Name=Start with Video Enhancement Level 2 (High Clarity)
+Exec=media-player-pro --vf=cas=0.60 --deband=yes
+
+[Desktop Action EnhanceLevel3]
+Name=Start with Video Enhancement Level 3 (Ultra Fidelity)
+Exec=media-player-pro --vf=cas=0.85 --deband=yes

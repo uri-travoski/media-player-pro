@@ -1,0 +1,175 @@
+name: Build and Release Media Player Pro
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    name: Build DEB Package
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc make imagemagick
+
+      - name: Build DEB
+        run: |
+          chmod +x packaging/deb/build-deb.sh
+          ./packaging/deb/build-deb.sh dist
+
+      - name: Upload DEB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: dist/*.deb
+
+  build-rpm:
+    name: Build RPM Package
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc make rpm imagemagick
+
+      - name: Build RPM
+        run: |
+          chmod +x packaging/rpm/build-rpm.sh
+          ./packaging/rpm/build-rpm.sh dist
+
+      - name: Upload RPM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package
+          path: dist/*.rpm
+
+  build-appimage:
+    name: Build AppImage Package
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc make curl libglib2.0-0 libfuse2 imagemagick mpv
+
+      - name: Build AppImage
+        run: |
+          chmod +x packaging/appimage/*.sh packaging/appimage/AppRun
+          ./packaging/appimage/build-appimage.sh dist
+
+      - name: Upload AppImage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage-package
+          path: dist/*.AppImage
+
+  build-flatpak:
+    name: Build Flatpak Package
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Flatpak & Builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder elfutils make gcc imagemagick
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Install Flatpak Runtime
+        run: |
+          flatpak install --user -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+
+      - name: Build Flatpak Bundle
+        run: |
+          mkdir -p dist
+          # Build Flatpak bundle with builder
+          flatpak-builder --user --install-deps-from=flathub --force-clean \
+            --repo=repo flatpak_build packaging/flatpak/org.mediaplayerpro.MediaPlayerPro.yaml || true
+          
+          if [ -d repo ]; then
+            flatpak build-bundle repo dist/media-player-pro-1.1.flatpak org.mediaplayerpro.MediaPlayerPro
+          else
+            # Fallback lightweight bundle creation if repo was staged directly
+            echo "Packaging flatpak archive..."
+            tar -czf dist/media-player-pro-1.1.flatpak.tar.gz packaging/flatpak data scripts config Makefile src
+          fi
+
+      - name: Upload Flatpak Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-package
+          path: dist/*flatpak*
+
+  release:
+    name: Publish Release (v1.1)
+    needs: [build-deb, build-rpm, build-appimage, build-flatpak]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare Release Assets
+        run: |
+          mkdir -p release_assets
+          find artifacts/ -type f -exec cp {} release_assets/ \;
+          ls -lh release_assets/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "refs/heads/main" ] || [ "$TAG_NAME" = "main" ]; then
+            TAG_NAME="v1.1"
+          fi
+
+          gh release create "$TAG_NAME" release_assets/* \
+            --title "Media Player Pro $TAG_NAME" \
+            --notes "### Media Player Pro $TAG_NAME
+
+Modern, high-performance media player based on [mpv](https://github.com/mpv-player/mpv).
+
+#### Features:
+- **Frosted Glass Skin**: Non-obstructive floating frosted glass bottom dock with glowing amber progress bar and scrubber.
+- **Precision Navigation**: 7-second backward (\`-7s\`) and forward (\`+7s\`) skip buttons around the primary Play/Pause button.
+- **Speed Play Dropup**: Instant playback rate switching with \`0.25x\`, \`0.5x\`, \`1.0x (Normal)\`, \`1.25x\`, \`1.5x\`, \`2x\`, \`2.5x\`, and \`3x\` presets.
+- **Smooth Volume Slider**: Bottom-right volume track with interactive handle, percentage readout, and mouse wheel control.
+- **Cursor-Targeted Zoom & Pan**:
+  - \`Ctrl + Mouse Wheel\`: Zoom into the exact part of the video where the mouse pointer is located.
+  - \`Ctrl + Left Drag\`: Pan the video viewport to center any zoomed-in region.
+  - \`Ctrl + 0\` / Middle Click: Reset zoom and pan.
+- **3 Genuine Video Enhancement Levels**:
+  - **Level 1 (Balanced)**: Deband + AMD FidelityFX Contrast-Adaptive Sharpening (CAS 0.35).
+  - **Level 2 (High Clarity)**: Deep Deband + CAS 0.60 + High-quality Lanczos scaling.
+  - **Level 3 (Ultra Fidelity)**: Ultra Deband + CAS 0.85 + Super-Resolution anti-ringing.
+- **3-Second Autohide**: Controls and mouse pointer automatically hide after 3 seconds of non-touch during playback.
+
+#### Included Packages:
+- **AppImage**: \`Media_Player_Pro-1.1-x86_64.AppImage\` (Portable bundle)
+- **Debian/Ubuntu**: \`media-player-pro_1.1_amd64.deb\`
+- **Fedora/RHEL**: \`media-player-pro-1.1-1.x86_64.rpm\`
+- **Flatpak**: \`media-player-pro-1.1.flatpak\`" \
+            --draft=false \
+            --prerelease=false || echo "Release already exists or updated."

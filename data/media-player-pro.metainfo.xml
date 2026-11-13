@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.mediaplayerpro.MediaPlayerPro</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <name>Media Player Pro</name>
+  <summary>Modern media player with complete frosted glass skin and genuine video enhancement</summary>
+  <description>
+    <p>
+      Media Player Pro is an advanced, high-performance media player built on top of mpv.
+      It features a non-obstructive frosted glass skin with transparent seekbar, vibrant amber controls,
+      interactive cursor-targeted zoom and dragging, speed dropup selector, and a 3-level genuine video
+      enhancement engine powered by AMD FidelityFX Contrast Adaptive Sharpening (CAS) and deband filtering.
+    </p>
+  </description>
+  <launchable type="desktop-id">media-player-pro.desktop</launchable>
+  <provides>
+    <binary>media-player-pro</binary>
+  </provides>
+  <releases>
+    <release version="1.1" date="2026-11-14">
+      <description>
+        <p>Media Player Pro v1.1 Initial Release:</p>
+        <ul>
+          <li>Complete frosted glass skin with transparent seek bar and glowing scrubber</li>
+          <li>7-second forward and backward skip controls</li>
+          <li>Speed play dropup with 0.25x to 3.0x speed presets</li>
+          <li>Smooth volume slider with wheel control</li>
+          <li>Ctrl + Mouse Wheel cursor-centered video zoom and Ctrl + Drag pan</li>
+          <li>3-level genuine video enhancement engine (Deband + FidelityFX CAS)</li>
+          <li>3-second inactivity autohide for controls and mouse pointer</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+</component>

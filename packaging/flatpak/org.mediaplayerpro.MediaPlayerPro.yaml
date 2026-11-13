@@ -1,0 +1,34 @@
+app-id: org.mediaplayerpro.MediaPlayerPro
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: media-player-pro
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=all
+  - --filesystem=host
+  - --filesystem=xdg-run/pipewire-0
+
+modules:
+  - name: mpv
+    buildsystem: meson
+    config-opts:
+      - -Dlibmpv=true
+      - -Dmanpage-build=disabled
+    sources:
+      - type: git
+        url: https://github.com/mpv-player/mpv.git
+        tag: v0.39.0
+
+  - name: media-player-pro
+    buildsystem: simple
+    build-commands:
+      - make PREFIX=/app install
+    sources:
+      - type: dir
+        path: ../../
