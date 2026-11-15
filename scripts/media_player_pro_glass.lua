@@ -211,12 +211,20 @@ end
 
 local function open_in_browser(url)
     url = url or state.release_url or DEFAULT_RELEASE_URL
-    mp.osd_message("Opening latest release in browser...", 2.0)
+    mp.osd_message("Opening latest release on GitHub to download...", 3.0)
     mp.command_native_async({
         name = "subprocess",
         args = { "xdg-open", url },
         detach = true
-    }, function() end)
+    }, function(success, res)
+        if not success or (res and res.status ~= 0) then
+            mp.command_native_async({
+                name = "subprocess",
+                args = { "gio", "open", url },
+                detach = true
+            }, function() end)
+        end
+    end)
 end
 
 local function parse_version(v)
@@ -813,7 +821,7 @@ render = function()
                 { key = "sub",     label = "💬 Subtitles",         badge = "Toggle ▸", is_active = false },
                 { key = "stats",   label = "ℹ Video Statistics",  badge = "Display", is_active = false },
                 { key = "open",    label = "📂 Open Media File",   badge = "Open ▸", is_active = false },
-                { key = "update",  label = state.update_available and "▲ Update Available!" or "🔄 Version Info", badge = state.update_available and "Get ▸" or ("v" .. CURRENT_VERSION), is_active = state.update_available },
+                { key = "update",  label = state.update_available and ("▲ Update to " .. state.latest_version) or "⤓ Download Latest Update", badge = state.update_available and "Download ▸" or "GitHub ▸", is_active = state.update_available },
             }
 
             for idx, it in ipairs(items) do
@@ -1091,11 +1099,8 @@ local function on_mouse_button(table)
                                 open_file_dialog()
                                 state.settings_menu_open = false
                             elseif key == "update" then
-                                if state.update_available then
-                                    open_in_browser(state.release_url)
-                                else
-                                    check_for_updates(true)
-                                end
+                                open_in_browser(state.release_url or DEFAULT_RELEASE_URL)
+                                check_for_updates(false)
                                 state.settings_menu_open = false
                             end
                             render()
