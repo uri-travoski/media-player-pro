@@ -139,8 +139,8 @@ jobs:
             TAG_NAME="v1.2"
           fi
 
-          gh release create "$TAG_NAME" release_assets/* --clobber \
+          gh release create "$TAG_NAME" release_assets/* \
             --title "Media Player Pro $TAG_NAME" \
             --notes-file release_notes.md \
             --draft=false \
-            --prerelease=false || echo "Release create returned status $?"
+            --prerelease=false || gh release upload "$TAG_NAME" release_assets/* --clobber
