@@ -4,11 +4,12 @@
   <metadata_license>MIT</metadata_license>
   <project_license>GPL-2.0-or-later</project_license>
   <name>Media Player Pro</name>
-  <summary>Modern media player with complete frosted glass skin and genuine video enhancement</summary>
+  <summary>Modern media player with transparent glass controls, red theme, and video enhancement</summary>
   <description>
     <p>
       Media Player Pro is an advanced, high-performance media player built on top of mpv.
-      It features a non-obstructive frosted glass skin with transparent seekbar, vibrant amber controls,
+      It features a non-obstructive 100% transparent bottom bar with floating red controls,
+      playback memory remembering the last 20 unfinished videos with an interactive resume prompt,
       interactive cursor-targeted zoom and dragging, speed dropup selector, and a 3-level genuine video
       enhancement engine powered by AMD FidelityFX Contrast Adaptive Sharpening (CAS) and deband filtering.
     </p>
@@ -18,18 +19,22 @@
     <binary>media-player-pro</binary>
   </provides>
   <releases>
+    <release version="1.2" date="2026-11-14">
+      <description>
+        <p>Media Player Pro v1.2 Release:</p>
+        <ul>
+          <li>Smart Resume Memory: Remembers last 20 unfinished videos and prompts to resume or start over</li>
+          <li>Red-based theme with glowing red seekbar line and scrubber thumb</li>
+          <li>100% transparent bottom bar removing background occlusion so video is completely unobstructed</li>
+          <li>Clean media skip backward (◄◄) and forward (►►) icons (removing '7s' text)</li>
+          <li>New frosted glass surround app icon with vibrant red play button</li>
+          <li>Full dual Wayland and X11 compositor compatibility with fallback context probing</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1" date="2026-11-14">
       <description>
-        <p>Media Player Pro v1.1 Initial Release:</p>
-        <ul>
-          <li>Complete frosted glass skin with transparent seek bar and glowing scrubber</li>
-          <li>7-second forward and backward skip controls</li>
-          <li>Speed play dropup with 0.25x to 3.0x speed presets</li>
-          <li>Smooth volume slider with wheel control</li>
-          <li>Ctrl + Mouse Wheel cursor-centered video zoom and Ctrl + Drag pan</li>
-          <li>3-level genuine video enhancement engine (Deband + FidelityFX CAS)</li>
-          <li>3-second inactivity autohide for controls and mouse pointer</li>
-        </ul>
+        <p>Media Player Pro v1.1 Initial Release</p>
       </description>
     </release>
   </releases>

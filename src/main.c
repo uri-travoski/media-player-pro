@@ -1,5 +1,5 @@
 /*
- * Media Player Pro (v1.1)
+ * Media Player Pro (v1.2)
  * High-performance media player with complete frosted glass skin and video enhancements.
  * Based on mpv (https://github.com/mpv-player/mpv)
  */
@@ -14,7 +14,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 
-#define VERSION "1.1"
+#define VERSION "1.2"
 #define APP_NAME "Media Player Pro"
 
 static int file_exists(const char *path) {
@@ -84,8 +84,9 @@ static void print_help(void) {
     printf("\nUsage:\n");
     printf("  media-player-pro [options] [file|URL...]\n\n");
     printf("Features:\n");
-    printf("  • Transparent seekbar & floating frosted glass bottom dock\n");
-    printf("  • 7-second skip backward / forward controls\n");
+    printf("  • Transparent seekbar & non-obstructive floating controls\n");
+    printf("  • Remembers last 20 unfinished videos with resume prompt\n");
+    printf("  • 7-second skip backward (◄◄) / forward (►►) controls\n");
     printf("  • Speed play dropup (0.25x - 3.0x)\n");
     printf("  • Smooth volume slider & mouse wheel control\n");
     printf("  • Ctrl + Mouse Wheel zoom centered at cursor position\n");
@@ -125,16 +126,20 @@ int main(int argc, char *argv[]) {
     snprintf(input_file, sizeof(input_file), "%s/config/input.conf", res_dir);
 
     // Build arguments list for mpv execution
-    int max_args = argc + 24;
+    int max_args = argc + 28;
     char **mpv_argv = malloc(sizeof(char*) * max_args);
     int arg_idx = 0;
 
     mpv_argv[arg_idx++] = "mpv";
+    mpv_argv[arg_idx++] = "--idle=yes";
+    mpv_argv[arg_idx++] = "--force-window=yes";
     mpv_argv[arg_idx++] = "--osc=no";
     mpv_argv[arg_idx++] = "--cursor-autohide=3000";
-    mpv_argv[arg_idx++] = "--title=Media Player Pro - ${media-title:${filename}}";
+    mpv_argv[arg_idx++] = "--title=Media Player Pro - ${media-title:${filename:Ready}}";
     mpv_argv[arg_idx++] = "--x11-name=media-player-pro";
     mpv_argv[arg_idx++] = "--wayland-app-id=media-player-pro";
+    mpv_argv[arg_idx++] = "--gpu-context=wayland,x11egl,waylandvk,x11vk";
+    mpv_argv[arg_idx++] = "--vo=gpu-next,gpu";
 
     if (file_exists(config_file)) {
         char *include_conf;

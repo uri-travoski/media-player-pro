@@ -1,12 +1,12 @@
 -- Media Player Pro - media_player_pro_glass.lua
--- Complete Frosted Glass OSC Skin for Media Player Pro
+-- Complete Frosted Glass OSC Skin for Media Player Pro (v1.2)
 -- Features:
---  - Floating frosted glass bottom dock
---  - Transparent seek bar with vibrant amber played line and glowing scrubber
---  - Elapsed & Remaining time indicators
---  - 7s Backward & 7s Forward buttons around Play/Pause
---  - Speed Play Dropup (0.25x, 0.5x, 1.0x, 1.25x, 1.5x, 2.0x, 2.5x, 3.0x)
---  - Volume Slider with glowing handle & Mute toggle
+--  - Ultra-transparent non-obstructive bottom controls (buttons/controls floating directly over video)
+--  - Vibrant Red theme with red glow progress line & scrubber thumb
+--  - Remembers last 20 unfinished videos & interactive Resume/Restart prompt
+--  - Media backward (◄◄) & forward (►►) skip buttons (7s) without "7s" text
+--  - Speed Play Dropup (0.25x to 3.0x) with red highlights
+--  - Volume Slider with red glowing indicator & Mute toggle
 --  - Minimise & Maximise buttons
 --  - Settings Popover Menu with 3 levels of genuine video enhancements
 --  - 3-second non-touch autohide for controls and mouse cursor during playback
@@ -17,20 +17,24 @@ local utils = require 'mp.utils'
 local overlay = mp.create_osd_overlay("ass-events")
 
 -- Color Constants (ASS format: &HBBGGRR&)
--- Amber/Orange accent: #F59E0B -> R:0xF5, G:0x9E, B:0x0B -> &H0B9EF5&
-local C_ACCENT        = "&H0B9EF5&"
-local C_ACCENT_GLOW   = "&H0B9EF5&"
+-- Vibrant Red: RGB #FF2438 -> B:0x38, G:0x24, R:0xFF -> &H3824FF&
+-- Glowing Red:  RGB #FF1028 -> B:0x28, G:0x10, R:0xFF -> &H2810FF&
+local C_ACCENT        = "&H3824FF&"
+local C_ACCENT_GLOW   = "&H2810FF&"
 local C_WHITE         = "&HFFFFFF&"
 local C_TEXT_MUTED    = "&HA0A0A0&"
-local C_GLASS_BG      = "&H140F0D&" -- Frosted glass dark background
-local C_GLASS_BORDER  = "&H403830&" -- Subtle glass border
-local C_TRACK_BG      = "&H504840&" -- Translucent unplayed track
-local C_HOVER_BG      = "&H2C241E&"
-local C_POPUP_BG      = "&H0F0B09&"
+local C_GLASS_BG      = "&H0D0A0B&" -- Translucent deep glass
+local C_GLASS_BORDER  = "&H382226&" -- Subtle glass border with hint of red
+local C_TRACK_BG      = "&H3A3A3A&" -- Translucent unplayed track
+local C_HOVER_BG      = "&H281216&" -- Red-tinted glass hover
+local C_POPUP_BG      = "&H0E0A0C&" -- Deep translucent popover background
 
-local CURRENT_VERSION = "1.1"
+local CURRENT_VERSION = "1.2"
 local GITHUB_REPO     = "uri-travoski/media-player-pro"
 local DEFAULT_RELEASE_URL = "https://github.com/uri-travoski/media-player-pro/releases/latest"
+
+local HISTORY_DIR = os.getenv("HOME") .. "/.config/media-player-pro"
+local HISTORY_FILE = HISTORY_DIR .. "/watch_history.json"
 
 local state = {
     visible = true,
@@ -59,12 +63,127 @@ local state = {
     latest_version = CURRENT_VERSION,
     release_url = DEFAULT_RELEASE_URL,
     checking_update = false,
+    idle_active = false,
     
+    -- Remember last 20 unfinished videos & prompt state
+    resume_prompt = {
+        show = false,
+        path = nil,
+        pos = 0,
+        duration = 0,
+        title = "",
+        time_opened = 0
+    },
+
     window_w = 1280,
     window_h = 720,
 }
 
 local speeds = { 0.25, 0.5, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0 }
+
+local render -- Forward declaration
+
+-- --------------------------------------------------------------------------
+-- History Storage Engine (Last 20 Unfinished Videos)
+-- --------------------------------------------------------------------------
+local function ensure_config_dir()
+    os.execute("mkdir -p '" .. HISTORY_DIR .. "' 2>/dev/null")
+end
+
+local function load_history()
+    local f = io.open(HISTORY_FILE, "r")
+    if not f then return {} end
+    local content = f:read("*all")
+    f:close()
+    if not content or #content == 0 then return {} end
+    local ok, data = pcall(utils.parse_json, content)
+    if ok and data and data.history and type(data.history) == "table" then
+        return data.history
+    end
+    return {}
+end
+
+local function save_history(history)
+    ensure_config_dir()
+    local f = io.open(HISTORY_FILE, "w")
+    if not f then return end
+    local ok, json_str = pcall(utils.format_json, { history = history })
+    if ok and json_str then
+        f:write(json_str)
+    end
+    f:close()
+end
+
+local function update_playback_position()
+    local path = mp.get_property("path")
+    if not path or path == "" then return end
+    local pos = state.time_pos or 0
+    local dur = state.duration or 0
+    if dur < 30 or pos < 10 then return end
+
+    local history = load_history()
+
+    -- If finished (within 15s of end or >96% watched), remove from history
+    if (dur - pos <= 15) or (pos / dur >= 0.96) then
+        local new_hist = {}
+        for _, item in ipairs(history) do
+            if item.path ~= path then
+                table.insert(new_hist, item)
+            end
+        end
+        save_history(new_hist)
+        return
+    end
+
+    -- Otherwise, it is UNFINISHED: update or insert at front
+    local new_hist = {
+        {
+            path = path,
+            filename = mp.get_property("filename") or "",
+            title = mp.get_property("media-title") or "",
+            pos = math.floor(pos),
+            duration = math.floor(dur),
+            updated = os.time()
+        }
+    }
+    for _, item in ipairs(history) do
+        if item.path ~= path and #new_hist < 20 then
+            table.insert(new_hist, item)
+        end
+    end
+    save_history(new_hist)
+end
+
+-- --------------------------------------------------------------------------
+-- File Dialog & Updates
+-- --------------------------------------------------------------------------
+local function open_file_dialog()
+    mp.osd_message("Opening file chooser...", 2.0)
+    local py_code = "import tkinter.filedialog as fd, sys; path = fd.askopenfilename(title='Media Player Pro - Choose Media'); sys.stdout.write(path)"
+    mp.command_native_async({
+        name = "subprocess",
+        args = { "python3", "-c", py_code },
+        capture_stdout = true
+    }, function(success, res)
+        if success and res and res.status == 0 and res.stdout and #res.stdout > 0 then
+            local p = res.stdout:gsub("^%s+", ""):gsub("%s+$", "")
+            if #p > 0 then
+                mp.commandv("loadfile", p)
+            end
+        else
+            mp.command_native_async({
+                name = "subprocess",
+                args = { "zenity", "--file-selection", "--title=Media Player Pro - Choose Media" },
+                capture_stdout = true
+            }, function(s2, r2)
+                if s2 and r2 and r2.status == 0 and r2.stdout and #r2.stdout > 0 then
+                    local p2 = r2.stdout:gsub("^%s+", ""):gsub("%s+$", "")
+                    if #p2 > 0 then mp.commandv("loadfile", p2) end
+                end
+            end)
+        end
+    end)
+end
 
 local function open_in_browser(url)
     url = url or state.release_url or DEFAULT_RELEASE_URL
@@ -97,8 +216,6 @@ local function is_newer_version(latest, current)
     end
     return false
 end
-
-local render -- Forward declaration
 
 local function check_for_updates(manual)
     if state.checking_update then return end
@@ -156,7 +273,9 @@ local function format_time(seconds)
     end
 end
 
+-- --------------------------------------------------------------------------
 -- Exact ASS Drawing Helpers
+-- --------------------------------------------------------------------------
 local function ass_rect(x, y, w, h, r)
     r = r or 0
     if r <= 0 then
@@ -187,6 +306,22 @@ local function ass_circle(cx, cy, r)
         cx - k, cy + r, cx - r, cy + k, cx - r, cy,
         cx - r, cy - k, cx - k, cy - r, cx, cy - r
     )
+end
+
+-- Media Skip Backward Icon (Two left-pointing triangles)
+local function ass_skip_backward(cx, cy, w, h)
+    local s = math.floor(w / 2)
+    local t1 = string.format("m %d %d l %d %d l %d %d", cx - s, cy, cx - 1, cy - h, cx - 1, cy + h)
+    local t2 = string.format("m %d %d l %d %d l %d %d", cx, cy, cx + s, cy - h, cx + s, cy + h)
+    return t1 .. " " .. t2
+end
+
+-- Media Skip Forward Icon (Two right-pointing triangles)
+local function ass_skip_forward(cx, cy, w, h)
+    local s = math.floor(w / 2)
+    local t1 = string.format("m %d %d l %d %d l %d %d", cx - s, cy - h, cx, cy, cx - s, cy + h)
+    local t2 = string.format("m %d %d l %d %d l %d %d", cx + 1, cy - h, cx + s + 1, cy, cx + 1, cy + h)
+    return t1 .. " " .. t2
 end
 
 -- Layout Calculation
@@ -221,18 +356,14 @@ local function inside(px, py, rx, ry, rw, rh)
     return px >= rx and px <= (rx + rw) and py >= ry and py <= (ry + rh)
 end
 
+-- --------------------------------------------------------------------------
 -- Main Render Function
+-- --------------------------------------------------------------------------
 render = function()
     if not state.visible then
         overlay.data = ""
         overlay:update()
         return
-    end
-
-    local dims = mp.get_property_native("osd-dimensions")
-    if dims and dims.w and dims.w > 0 and dims.h and dims.h > 0 then
-        state.window_w = dims.w
-        state.window_h = dims.h
     end
 
     overlay.res_x = state.window_w
@@ -245,52 +376,146 @@ render = function()
     -- Base styling
     add("{\\rDefault\\an7\\pos(0,0)}")
 
-    -- 1. Ambient Frosted Glass Dock
-    -- Outer blur shadow
-    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&HC0&\\blur20}{\\p1}%s{\\p0}",
-        C_GLASS_BG, ass_rect(L.dock_x, L.dock_y, L.dock_w, L.dock_h, 16)))
-    -- Frosted glass dock background with border
-    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H70&\\1c%s\\1a&H30&\\blur1}{\\p1}%s{\\p0}",
-        C_GLASS_BORDER, C_GLASS_BG, ass_rect(L.dock_x, L.dock_y, L.dock_w, L.dock_h, 16)))
+    -- 0. Interactive Resume Playback Dialog (When Opening Unfinished Video)
+    if state.resume_prompt.show then
+        local rw = 480
+        local rh = 124
+        local rx = math.floor((state.window_w - rw) / 2)
+        local ry = math.min(100, math.floor(state.window_h * 0.16))
+        local rcx = rx + math.floor(rw / 2)
 
-    -- 2. Transparent Seekbar Area
+        -- Outer soft blur shadow & frosted glass card
+        add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&HA0&\\blur18}{\\p1}%s{\\p0}",
+            C_GLASS_BG, ass_rect(rx, ry, rw, rh, 14)))
+        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H40&\\1c%s\\1a&H18&\\blur2}{\\p1}%s{\\p0}",
+            C_ACCENT, C_POPUP_BG, ass_rect(rx, ry, rw, rh, 14)))
+
+        -- Title: Resume playback from MM:SS?
+        local pos_str = format_time(state.resume_prompt.pos)
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs16\\1c%s\\bord1\\3c&H000000&\\3a&H80&}%s",
+            rcx, ry + 24, C_WHITE, "Resume playback from " .. pos_str .. "?"))
+
+        -- Subtitle: filename / title
+        local title_display = state.resume_prompt.title
+        if not title_display or title_display == "" then title_display = "Video" end
+        if #title_display > 42 then title_display = title_display:sub(1, 40) .. "…" end
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\fs12\\1c%s\\1a&H30&}%s",
+            rcx, ry + 46, C_TEXT_MUTED, title_display))
+
+        -- Button A: [ ▶ Resume (MM:SS) ]
+        local b_res_w = 196
+        local b_res_h = 36
+        local b_res_x = rcx - b_res_w - 10
+        local b_res_y = ry + 68
+        local is_res_hover = inside(state.mouse_x, state.mouse_y, b_res_x, b_res_y, b_res_w, b_res_h)
+
+        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H30&\\1c%s\\1a%s\\blur2}{\\p1}%s{\\p0}",
+            C_ACCENT, C_ACCENT, is_res_hover and "&H00&" or "&H30&", ass_rect(b_res_x, b_res_y, b_res_w, b_res_h, 8)))
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs13\\1c%s}%s",
+            b_res_x + math.floor(b_res_w / 2), b_res_y + 17, C_WHITE, "▶ Resume (" .. pos_str .. ")"))
+
+        -- Button B: [ ↺ Start from Beginning ]
+        local b_beg_w = 196
+        local b_beg_h = 36
+        local b_beg_x = rcx + 10
+        local b_beg_y = ry + 68
+        local is_beg_hover = inside(state.mouse_x, state.mouse_y, b_beg_x, b_beg_y, b_beg_w, b_beg_h)
+
+        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H60&\\1c%s\\1a%s\\blur2}{\\p1}%s{\\p0}",
+            is_beg_hover and C_ACCENT or C_GLASS_BORDER, is_beg_hover and C_HOVER_BG or C_GLASS_BG, is_beg_hover and "&H20&" or "&H70&",
+            ass_rect(b_beg_x, b_beg_y, b_beg_w, b_beg_h, 8)))
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs13\\1c%s}%s",
+            b_beg_x + math.floor(b_beg_w / 2), b_beg_y + 17, is_beg_hover and C_ACCENT or C_WHITE, "↺ Start from Beginning"))
+
+        -- Button C: [ ✕ ] Dismiss
+        local b_cls_x = rx + rw - 22
+        local b_cls_y = ry + 16
+        local is_cls_hover = inside(state.mouse_x, state.mouse_y, b_cls_x - 12, b_cls_y - 12, 24, 24)
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s}%s",
+            b_cls_x, b_cls_y, is_cls_hover and C_ACCENT or C_TEXT_MUTED, "✕"))
+    end
+
+    -- Center Splash Card in Idle Mode
+    local is_idle = state.idle_active or (state.duration <= 0 and not mp.get_property("path"))
+    if is_idle then
+        local card_w = 480
+        local card_h = 240
+        local card_x = math.floor((state.window_w - card_w) / 2)
+        local card_y = math.floor((state.window_h - card_h) / 2) - 20
+        local cx = card_x + math.floor(card_w / 2)
+        local cy = card_y + math.floor(card_h / 2)
+
+        -- Ambient glow
+        add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&HB0&\\blur24}{\\p1}%s{\\p0}",
+            C_GLASS_BG, ass_rect(card_x, card_y, card_w, card_h, 16)))
+        -- Frosted card with red rim
+        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a&H20&\\blur2}{\\p1}%s{\\p0}",
+            C_ACCENT, C_GLASS_BG, ass_rect(card_x, card_y, card_w, card_h, 16)))
+
+        -- Glowing red play circle
+        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H30&\\1c%s\\1a&H10&\\blur3}{\\p1}%s{\\p0}",
+            C_ACCENT, C_HOVER_BG, ass_circle(cx, cy - 45, 30)))
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs26\\1c%s}%s",
+            cx + 2, cy - 46, C_ACCENT, "▶"))
+
+        -- Title
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs20\\1c%s}%s",
+            cx, cy + 5, C_WHITE, "MEDIA PLAYER PRO"))
+        -- Subtitle
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\fs13\\1c%s\\1a&H30&}%s",
+            cx, cy + 30, C_TEXT_MUTED, "Drop video file here to play or open media"))
+
+        -- Open File Button
+        local btn_w = 210
+        local btn_h = 36
+        local btn_x = cx - math.floor(btn_w / 2)
+        local btn_y = cy + 52
+        local is_btn_hover = inside(state.mouse_x, state.mouse_y, btn_x, btn_y, btn_w, btn_h)
+        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H40&\\1c%s\\1a%s\\blur2}{\\p1}%s{\\p0}",
+            C_ACCENT, is_btn_hover and C_ACCENT or C_HOVER_BG, is_btn_hover and "&H20&" or "&H60&",
+            ass_rect(btn_x, btn_y, btn_w, btn_h, 8)))
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s}%s",
+            cx, btn_y + 17, is_btn_hover and C_WHITE or C_ACCENT, "📂 Open Media File"))
+    end
+
+    -- 1. Bottom Bar is 100% Transparent
+    -- Note: Dock pill background and ambient backdrops are completely omitted
+    -- so video is totally visible with zero obstruction beneath controls.
+
+    -- 2. Transparent Floating Seekbar
     local dur = state.duration > 0 and state.duration or 1
     local progress = math.max(0, math.min(1, state.time_pos / dur))
     local played_w = math.floor(L.seek_w * progress)
 
-    -- Ambient backdrop behind seekbar
-    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&HA0&\\blur10}{\\p1}%s{\\p0}",
-        C_GLASS_BG, ass_rect(L.seek_x - 12, L.seek_y - 22, L.seek_w + 24, 38, 10)))
-
-    -- Elapsed Time (Left)
+    -- Elapsed Time (Left) with drop shadow for legibility over any video
     local cur_time_str = format_time(state.time_pos)
-    add(string.format("{\\an7\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s\\1a&H00&\\bord1\\3c&H000000&\\3a&H80&}%s",
+    add(string.format("{\\an7\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s\\1a&H00&\\bord1.5\\3c&H000000&\\3a&H50&}%s",
         L.seek_x, L.seek_y - 18, C_WHITE, cur_time_str))
 
-    -- Remaining Time (Right)
+    -- Remaining Time (Right) with drop shadow
     local rem_time_str = "Remaining " .. format_time(dur - state.time_pos)
-    add(string.format("{\\an9\\pos(%d,%d)\\fnDejaVu Sans\\fs14\\1c%s\\1a&H20&\\bord1\\3c&H000000&\\3a&H80&}%s",
+    add(string.format("{\\an9\\pos(%d,%d)\\fnDejaVu Sans\\fs14\\1c%s\\1a&H10&\\bord1.5\\3c&H000000&\\3a&H50&}%s",
         L.seek_x + L.seek_w, L.seek_y - 18, C_TEXT_MUTED, rem_time_str))
 
-    -- Unplayed Track (Glass Line)
-    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H60&}{\\p1}%s{\\p0}",
+    -- Unplayed Track (Thin Translucent Glass Line)
+    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H90&}{\\p1}%s{\\p0}",
         C_TRACK_BG, ass_rect(L.seek_x, L.seek_y + 4, L.seek_w, 4, 2)))
 
-    -- Played Track (Vibrant Amber / Orange)
+    -- Played Track (Vibrant Red with Red Glow)
     if played_w > 0 then
-        -- Glow
-        add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H50&\\blur4}{\\p1}%s{\\p0}",
+        -- Red Glow
+        add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H60&\\blur5}{\\p1}%s{\\p0}",
             C_ACCENT_GLOW, ass_rect(L.seek_x, L.seek_y + 4, played_w, 4, 2)))
-        -- Crisp line
+        -- Crisp Red Line
         add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
             C_ACCENT, ass_rect(L.seek_x, L.seek_y + 4, played_w, 4, 2)))
     end
 
-    -- Scrubber Thumb (Amber Glowing Dot)
+    -- Scrubber Thumb (Red Glowing Dot)
     local thumb_x = L.seek_x + played_w
     local thumb_y = L.seek_y + 6
     -- Outer glow ring
-    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H50&\\blur6}{\\p1}%s{\\p0}",
+    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H40&\\blur6}{\\p1}%s{\\p0}",
         C_ACCENT_GLOW, ass_circle(thumb_x, thumb_y, 9)))
     -- Core dot
     add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H10&\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
@@ -301,29 +526,29 @@ render = function()
         local hover_ratio = math.max(0, math.min(1, (state.mouse_x - L.seek_x) / L.seek_w))
         local hover_time = hover_ratio * dur
         local hover_str = format_time(hover_time)
-        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H60&\\1c%s\\1a&H18&\\blur3}{\\p1}%s{\\p0}",
+        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a&H18&\\blur3}{\\p1}%s{\\p0}",
             C_ACCENT, C_POPUP_BG, ass_rect(state.mouse_x - 28, L.seek_y - 38, 56, 22, 6)))
         add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs12\\1c%s}%s",
             state.mouse_x, L.seek_y - 27, C_ACCENT, hover_str))
     end
 
-    -- 3. Bottom Controls Dock
+    -- 3. Floating Bottom Controls (Only buttons and controls have background/color)
     local cy = L.dock_y + 38
 
-    -- Button 1: 7s Backward Button (-7s)
+    -- Button 1: Backward Skip Button (◄◄) - 7s skip without text
     local btn_back_x = L.dock_x + 42
     local is_back_hover = inside(state.mouse_x, state.mouse_y, btn_back_x - 22, cy - 22, 44, 44)
-    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H60&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
-        C_GLASS_BORDER, is_back_hover and C_HOVER_BG or C_GLASS_BG, is_back_hover and "&H20&" or "&H80&",
+    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
+        is_back_hover and C_ACCENT or C_GLASS_BORDER, is_back_hover and C_HOVER_BG or C_GLASS_BG, is_back_hover and "&H20&" or "&H80&",
         ass_circle(btn_back_x, cy, 20)))
-    add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s}%s",
-        btn_back_x, cy - 1, is_back_hover and C_ACCENT or C_WHITE, "↺ 7s"))
+    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
+        is_back_hover and C_ACCENT or C_WHITE, ass_skip_backward(btn_back_x, cy, 14, 7)))
 
     -- Button 2: Play / Pause Center Button
     local btn_play_x = L.dock_x + 104
     local is_play_hover = inside(state.mouse_x, state.mouse_y, btn_play_x - 26, cy - 26, 52, 52)
-    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H30&\\1c%s\\1a%s\\blur2}{\\p1}%s{\\p0}",
-        is_play_hover and C_ACCENT or C_WHITE, is_play_hover and C_HOVER_BG or C_GLASS_BG, is_play_hover and "&H10&" or "&H50&",
+    add(string.format("{\\pos(0,0)\\bord1.5\\3c%s\\3a&H20&\\1c%s\\1a%s\\blur2}{\\p1}%s{\\p0}",
+        is_play_hover and C_WHITE or C_ACCENT, is_play_hover and C_HOVER_BG or C_GLASS_BG, is_play_hover and "&H10&" or "&H50&",
         ass_circle(btn_play_x, cy, 24)))
     if state.pause then
         add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs22\\1c%s}%s",
@@ -333,19 +558,19 @@ render = function()
             btn_play_x, cy - 1, C_WHITE, "❚❚"))
     end
 
-    -- Button 3: 7s Forward Button (+7s)
+    -- Button 3: Forward Skip Button (►►) - 7s skip without text
     local btn_fwd_x = L.dock_x + 166
     local is_fwd_hover = inside(state.mouse_x, state.mouse_y, btn_fwd_x - 22, cy - 22, 44, 44)
-    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H60&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
-        C_GLASS_BORDER, is_fwd_hover and C_HOVER_BG or C_GLASS_BG, is_fwd_hover and "&H20&" or "&H80&",
+    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
+        is_fwd_hover and C_ACCENT or C_GLASS_BORDER, is_fwd_hover and C_HOVER_BG or C_GLASS_BG, is_fwd_hover and "&H20&" or "&H80&",
         ass_circle(btn_fwd_x, cy, 20)))
-    add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s}%s",
-        btn_fwd_x, cy - 1, is_fwd_hover and C_ACCENT or C_WHITE, "7s ↻"))
+    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
+        is_fwd_hover and C_ACCENT or C_WHITE, ass_skip_forward(btn_fwd_x, cy, 14, 7)))
 
     -- Button 4: Speed Play Dropup Button
     local btn_spd_x = L.dock_x + 242
     local is_spd_hover = inside(state.mouse_x, state.mouse_y, btn_spd_x - 32, cy - 18, 64, 36)
-    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H60&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
+    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
         state.speed_menu_open and C_ACCENT or C_GLASS_BORDER,
         is_spd_hover and C_HOVER_BG or C_GLASS_BG,
         (is_spd_hover or state.speed_menu_open) and "&H20&" or "&H70&",
@@ -371,28 +596,28 @@ render = function()
     -- Background Track
     add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H70&}{\\p1}%s{\\p0}",
         C_TRACK_BG, ass_rect(vol_track_x, cy - 2, vol_track_w, 4, 2)))
-    -- Active / Filled Track
+    -- Active / Filled Track (Red)
     if vol_fill_w > 0 then
         add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
             C_ACCENT, ass_rect(vol_track_x, cy - 2, vol_fill_w, 4, 2)))
     end
-    -- Volume Slider Handle
+    -- Volume Slider Handle (Red glowing)
     local vol_thumb_x = vol_track_x + vol_fill_w
-    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H50&\\blur4}{\\p1}%s{\\p0}",
+    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H40&\\blur4}{\\p1}%s{\\p0}",
         C_ACCENT_GLOW, ass_circle(vol_thumb_x, cy, 6)))
     add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H20&\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
         C_WHITE, C_ACCENT, ass_circle(vol_thumb_x, cy, 4)))
 
     -- Volume percentage text
     local vol_text = string.format("%d%%", state.mute and 0 or math.floor(state.volume + 0.5))
-    add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\fs12\\1c%s\\1a&H20&}%s",
+    add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\fs12\\1c%s\\1a&H20&\\bord1\\3c&H000000&\\3a&H60&}%s",
         vol_track_x + vol_track_w + 10, cy - 1, C_TEXT_MUTED, vol_text))
 
     -- Button 6: Window Controls (Minimise & Maximise)
     local btn_min_x = L.dock_x + L.dock_w - 120
     local is_min_hover = inside(state.mouse_x, state.mouse_y, btn_min_x - 18, cy - 18, 36, 36)
     add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H70&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
-        C_GLASS_BORDER, is_min_hover and C_HOVER_BG or C_GLASS_BG, is_min_hover and "&H20&" or "&H80&",
+        is_min_hover and C_ACCENT or C_GLASS_BORDER, is_min_hover and C_HOVER_BG or C_GLASS_BG, is_min_hover and "&H20&" or "&H80&",
         ass_rect(btn_min_x - 16, cy - 16, 32, 32, 6)))
     add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs18\\1c%s}%s",
         btn_min_x, cy - 3, is_min_hover and C_ACCENT or C_WHITE, "—"))
@@ -400,7 +625,7 @@ render = function()
     local btn_max_x = L.dock_x + L.dock_w - 74
     local is_max_hover = inside(state.mouse_x, state.mouse_y, btn_max_x - 18, cy - 18, 36, 36)
     add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H70&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
-        C_GLASS_BORDER, is_max_hover and C_HOVER_BG or C_GLASS_BG, is_max_hover and "&H20&" or "&H80&",
+        is_max_hover and C_ACCENT or C_GLASS_BORDER, is_max_hover and C_HOVER_BG or C_GLASS_BG, is_max_hover and "&H20&" or "&H80&",
         ass_rect(btn_max_x - 16, cy - 16, 32, 32, 6)))
     add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\fs16\\1c%s}%s",
         btn_max_x, cy - 1, is_max_hover and C_ACCENT or C_WHITE, "🗖"))
@@ -425,7 +650,7 @@ render = function()
 
         -- Popover Background
         add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a&H18&\\blur4}{\\p1}%s{\\p0}",
-            C_GLASS_BORDER, C_POPUP_BG, ass_rect(spd_pop_x, spd_pop_y, spd_pop_w, spd_pop_h, 8)))
+            C_ACCENT, C_POPUP_BG, ass_rect(spd_pop_x, spd_pop_y, spd_pop_w, spd_pop_h, 8)))
 
         for idx, spd in ipairs(speeds) do
             local item_y = spd_pop_y + 8 + (idx - 1) * 28
@@ -445,14 +670,14 @@ render = function()
         end
     end
 
-    -- 5. Settings Popover Menu (Matching Attached Reference Popover)
+    -- 5. Settings Popover Menu
     if state.settings_menu_open then
         local pop_w = 280
-        local pop_h = 280
+        local pop_h = 320
         local pop_x = L.dock_x + L.dock_w - pop_w
         local pop_y = L.dock_y - pop_h - 12
 
-        -- Popover Frosted Background with Rounded Corners & Glow
+        -- Popover Frosted Background with Rounded Corners & Red Glow
         add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a&H14&\\blur6}{\\p1}%s{\\p0}",
             C_ACCENT, C_POPUP_BG, ass_rect(pop_x, pop_y, pop_w, pop_h, 10)))
 
@@ -490,6 +715,7 @@ render = function()
         else
             -- Main Settings Menu Items
             local items = {
+                { key = "open",    label = "📂 Open File / URL ▸", sub = "Ctrl+O" },
                 { key = "enhance", label = "✦ Enhance Video ▸", sub = string.format("Level %d", state.enhancement_level) },
                 { key = "update",  label = state.update_available and "▲ Update Available! ▸" or "🔄 Check for Updates", sub = state.update_available and (state.latest_version or "Download") or ("v" .. CURRENT_VERSION) },
                 { key = "audio",   label = "🎵 Audio Track ▸", sub = "Cycle" },
@@ -520,10 +746,13 @@ render = function()
     overlay:update()
 end
 
+-- --------------------------------------------------------------------------
 -- Mouse & Interaction Handling
+-- --------------------------------------------------------------------------
 local function check_autohide()
     if state.pause then return end -- Keep visible while paused
     if state.mouse_down or state.active_drag then return end
+    if state.resume_prompt.show then return end -- Keep prompt visible
     
     local now = mp.get_time()
     if (now - state.last_mouse_activity) >= state.autohide_delay then
@@ -598,6 +827,58 @@ local function on_mouse_button(table)
     if event == "down" or event == "press" then
         state.mouse_down = true
 
+        -- Check Resume Prompt interactions
+        if state.resume_prompt.show then
+            local rw = 480
+            local rh = 124
+            local rx = math.floor((state.window_w - rw) / 2)
+            local ry = math.min(100, math.floor(state.window_h * 0.16))
+            local rcx = rx + math.floor(rw / 2)
+
+            -- Check [ ▶ Resume ] button
+            local b_res_w = 196
+            local b_res_h = 36
+            local b_res_x = rcx - b_res_w - 10
+            local b_res_y = ry + 68
+            if inside(x, y, b_res_x, b_res_y, b_res_w, b_res_h) then
+                mp.commandv("seek", state.resume_prompt.pos, "absolute")
+                mp.set_property_bool("pause", false)
+                state.resume_prompt.show = false
+                render()
+                return
+            end
+
+            -- Check [ ↺ Start from Beginning ] button
+            local b_beg_w = 196
+            local b_beg_h = 36
+            local b_beg_x = rcx + 10
+            local b_beg_y = ry + 68
+            if inside(x, y, b_beg_x, b_beg_y, b_beg_w, b_beg_h) then
+                mp.commandv("seek", 0, "absolute")
+                mp.set_property_bool("pause", false)
+                state.resume_prompt.show = false
+                render()
+                return
+            end
+
+            -- Check [ ✕ ] Dismiss button
+            local b_cls_x = rx + rw - 22
+            local b_cls_y = ry + 16
+            if inside(x, y, b_cls_x - 14, b_cls_y - 14, 28, 28) then
+                state.resume_prompt.show = false
+                render()
+                return
+            end
+
+            -- If clicking within prompt card, do nothing
+            if inside(x, y, rx, ry, rw, rh) then
+                return
+            end
+
+            -- If clicking elsewhere, dismiss prompt and continue
+            state.resume_prompt.show = false
+        end
+
         -- Check Speed Popover clicks
         if state.speed_menu_open then
             local spd_pop_w = 120
@@ -623,8 +904,8 @@ local function on_mouse_button(table)
 
         -- Check Settings Popover clicks
         if state.settings_menu_open then
-            local pop_w = 270
-            local pop_h = 240
+            local pop_w = 280
+            local pop_h = 320
             local pop_x = L.dock_x + L.dock_w - pop_w
             local pop_y = L.dock_y - pop_h - 12
 
@@ -652,11 +933,14 @@ local function on_mouse_button(table)
                     end
                 else
                     -- Main Settings Items
-                    local items = { "enhance", "update", "audio", "sub", "aspect", "stats" }
+                    local items = { "open", "enhance", "update", "audio", "sub", "aspect", "stats" }
                     for idx, key in ipairs(items) do
                         local item_y = pop_y + 40 + (idx - 1) * 38
                         if inside(x, y, pop_x, item_y, pop_w, 34) then
-                            if key == "enhance" then
+                            if key == "open" then
+                                open_file_dialog()
+                                state.settings_menu_open = false
+                            elseif key == "enhance" then
                                 state.settings_sub_menu = "enhance"
                             elseif key == "update" then
                                 if state.update_available then
@@ -687,6 +971,21 @@ local function on_mouse_button(table)
             end
         end
 
+        -- Check Idle Splash Open Media button
+        local is_idle = state.idle_active or (state.duration <= 0 and not mp.get_property("path"))
+        if is_idle then
+            local card_w = 480
+            local card_h = 240
+            local card_x = math.floor((state.window_w - card_w) / 2)
+            local card_y = math.floor((state.window_h - card_h) / 2) - 20
+            local cx = card_x + math.floor(card_w / 2)
+            local cy = card_y + math.floor(card_h / 2)
+            if inside(x, y, cx - 110, cy + 48, 220, 44) or inside(x, y, cx - 40, cy - 80, 80, 80) then
+                open_file_dialog()
+                return
+            end
+        end
+
         -- Check Seek Bar click/drag
         if inside(x, y, L.seek_x - 10, L.seek_y - 12, L.seek_w + 20, L.seek_h + 20) then
             state.active_drag = 'seek'
@@ -696,7 +995,7 @@ local function on_mouse_button(table)
             return
         end
 
-        -- Check 7s Backward Button
+        -- Check Backward Skip Button (◄◄) - 7s skip
         local btn_back_x = L.dock_x + 42
         if inside(x, y, btn_back_x - 22, cy - 22, 44, 44) then
             mp.commandv("seek", -7, "relative")
@@ -707,12 +1006,16 @@ local function on_mouse_button(table)
         -- Check Play / Pause Center Button
         local btn_play_x = L.dock_x + 104
         if inside(x, y, btn_play_x - 26, cy - 26, 52, 52) then
-            mp.commandv("cycle", "pause")
+            if state.idle_active or (state.duration <= 0 and not mp.get_property("path")) then
+                open_file_dialog()
+            else
+                mp.commandv("cycle", "pause")
+            end
             render()
             return
         end
 
-        -- Check 7s Forward Button
+        -- Check Forward Skip Button (►►) - 7s skip
         local btn_fwd_x = L.dock_x + 166
         if inside(x, y, btn_fwd_x - 22, cy - 22, 44, 44) then
             mp.commandv("seek", 7, "relative")
@@ -804,7 +1107,35 @@ local function on_wheel_down()
     render()
 end
 
--- Property Observers
+-- Resume prompt keyboard shortcuts
+local function handle_resume_key()
+    if state.resume_prompt.show then
+        mp.commandv("seek", state.resume_prompt.pos, "absolute")
+        mp.set_property_bool("pause", false)
+        state.resume_prompt.show = false
+        render()
+    end
+end
+
+local function handle_restart_key()
+    if state.resume_prompt.show then
+        mp.commandv("seek", 0, "absolute")
+        mp.set_property_bool("pause", false)
+        state.resume_prompt.show = false
+        render()
+    end
+end
+
+local function handle_dismiss_key()
+    if state.resume_prompt.show then
+        state.resume_prompt.show = false
+        render()
+    end
+end
+
+-- --------------------------------------------------------------------------
+-- Property Observers & Events
+-- --------------------------------------------------------------------------
 mp.observe_property("time-pos", "number", function(_, val)
     state.time_pos = val or 0
     render()
@@ -841,21 +1172,72 @@ mp.observe_property("user-data/mpp-enhancement-level", "number", function(_, val
     render()
 end)
 
+mp.observe_property("idle-active", "bool", function(_, val)
+    state.idle_active = val or false
+    render()
+end)
+
+mp.observe_property("osd-width", "number", function(_, val)
+    state.window_w = val or 1280
+    render()
+end)
+
+mp.observe_property("osd-height", "number", function(_, val)
+    state.window_h = val or 720
+    render()
+end)
+
 mp.observe_property("mouse-pos", "native", on_mouse_move)
 
 -- Key & Mouse Bindings
 mp.add_forced_key_binding("MBTN_LEFT", "glass_mouse_click", on_mouse_button, {complex = true})
 mp.add_forced_key_binding("WHEEL_UP", "glass_wheel_up", on_wheel_up)
 mp.add_forced_key_binding("WHEEL_DOWN", "glass_wheel_down", on_wheel_down)
+mp.add_forced_key_binding("ctrl+o", "glass_open_file", open_file_dialog)
+mp.add_forced_key_binding("ctrl+O", "glass_open_file_shift", open_file_dialog)
+mp.add_key_binding("ENTER", "glass_resume_enter", handle_resume_key)
+mp.add_key_binding("HOME", "glass_resume_restart", handle_restart_key)
+mp.add_key_binding("ESC", "glass_resume_esc", handle_dismiss_key)
 
--- Periodic Autohide Check (every 0.25s)
+-- File Loaded: Check watch history for unfinished position
+mp.register_event("file-loaded", function()
+    local path = mp.get_property("path")
+    if not path or path == "" then return end
+    local history = load_history()
+    for _, item in ipairs(history) do
+        if item.path == path and item.pos and item.pos >= 10 then
+            local dur = mp.get_property_number("duration", item.duration or 0)
+            if dur <= 0 or (dur - item.pos > 15 and item.pos / dur < 0.96) then
+                state.resume_prompt = {
+                    show = true,
+                    path = path,
+                    pos = item.pos,
+                    duration = dur,
+                    title = item.title or item.filename or mp.get_property("filename") or "Video",
+                    time_opened = mp.get_time()
+                }
+                mp.set_property_bool("pause", true)
+                wake_up()
+                render()
+                return
+            end
+        end
+    end
+    state.resume_prompt = { show = false }
+end)
+
+-- Shutdown & Periodic Position Recording
+mp.register_event("shutdown", function()
+    update_playback_position()
+end)
+
+mp.add_periodic_timer(5.0, update_playback_position)
 mp.add_periodic_timer(0.25, check_autohide)
 
 -- Initial Render & Auto Update Check
 wake_up()
 render()
 
--- Auto check for updates on startup (after 2 seconds)
 mp.add_timeout(2.0, function()
     check_for_updates(false)
 end)

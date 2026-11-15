@@ -1,12 +1,13 @@
 #!/bin/bash
 set -e
 
-VERSION="1.1"
+VERSION="1.2"
 ARCH="amd64"
 OUTPUT_DIR="${1:-$(pwd)/dist}"
 mkdir -p "$OUTPUT_DIR"
 
 STAGING="$(mktemp -d /tmp/deb-pkg-XXXXXX)"
+chmod 755 "$STAGING"
 trap 'rm -rf "$STAGING"' EXIT
 
 echo "==> Building Debian Package in $STAGING..."
@@ -14,6 +15,7 @@ echo "==> Building Debian Package in $STAGING..."
 make PREFIX=/usr DESTDIR="$STAGING" install
 
 mkdir -p "$STAGING/DEBIAN"
+chmod 755 "$STAGING/DEBIAN"
 cat <<EOF > "$STAGING/DEBIAN/control"
 Package: media-player-pro
 Version: ${VERSION}

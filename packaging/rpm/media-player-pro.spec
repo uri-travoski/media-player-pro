@@ -1,5 +1,5 @@
 Name:           media-player-pro
-Version:        1.1
+Version:        1.2
 Release:        1%{?dist}
 Summary:        Modern Frosted Glass Media Player based on mpv
 License:        GPLv2+
