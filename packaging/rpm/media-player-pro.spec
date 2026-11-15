@@ -1,5 +1,5 @@
 Name:           media-player-pro
-Version:        1.3
+Version:        1.4
 Release:        1%{?dist}
 Summary:        Modern Frosted Glass Media Player based on mpv
 License:        GPLv2+
@@ -41,6 +41,13 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
 fi
 
 %changelog
+* Sun Nov 15 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.4-1
+- Content-focused high-contrast settings menu with crystal-clear white typography
+- Solid obsidian menu backing to prevent video background bleed-through
+- Fixed video enhancement toggle and inter-script messaging
+- Added keyboard shortcuts: Ctrl+1 (Flip Horizontal) and Ctrl+2 (Rotate 90°)
+- Enhanced touch hitboxes for all settings menu items
+
 * Sun Nov 15 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.3-1
 - TrueTheater GPU video enhancement engine (CAS sharpening, adaptive lighting, skin vibrance)
 - Interactive hover tooltips for all controls

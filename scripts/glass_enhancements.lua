@@ -21,13 +21,17 @@ local state = {
 
 -- Locate shader file across installation and relative directories
 local function find_shader(filename)
-    local script_dir = mp.get_script_directory()
-    local cwd = mp.get_property("working-directory") or os.getenv("PWD") or "."
+    local cwd = utils.getcwd() or mp.get_property("working-directory") or os.getenv("PWD") or "."
+
+    -- Derive script directory from debug info
+    local info = debug.getinfo(1, "S")
+    local script_path = info and info.source and info.source:gsub("^@", "")
+    local script_dir = script_path and script_path:match("(.*/)")
+
     local candidates = {
-        script_dir and (script_dir .. "/../shaders/" .. filename),
-        script_dir and (script_dir .. "/../../shaders/" .. filename),
-        script_dir and (cwd .. "/" .. script_dir .. "/../shaders/" .. filename),
-        cwd .. "/shaders/" .. filename,
+        script_dir and utils.join_path(script_dir, "../shaders/" .. filename),
+        script_dir and utils.join_path(script_dir, "../../shaders/" .. filename),
+        utils.join_path(cwd, "shaders/" .. filename),
         "/usr/share/media-player-pro/shaders/" .. filename,
         "/usr/local/share/media-player-pro/shaders/" .. filename,
         "/app/share/media-player-pro/shaders/" .. filename,
@@ -41,6 +45,9 @@ local function find_shader(filename)
             local f = io.open(path, "r")
             if f then
                 f:close()
+                if not path:match("^/") then
+                    path = utils.join_path(cwd, path)
+                end
                 return path
             end
         end
@@ -180,6 +187,15 @@ mp.add_forced_key_binding("ctrl+E", "glass_toggle_enhancement_upper", toggle_enh
 -- Ctrl+Shift+E: Toggle A/B Comparison Mode
 mp.add_forced_key_binding("ctrl+shift+e", "glass_toggle_ab_test", toggle_ab_test)
 mp.add_forced_key_binding("ctrl+shift+E", "glass_toggle_ab_test_upper", toggle_ab_test)
+
+-- Script Messages for UI and Inter-script Control
+mp.register_script_message("toggle_enhancement", toggle_enhancement)
+mp.register_script_message("mpp_toggle_enhancement", toggle_enhancement)
+mp.register_script_message("glass_toggle_enhancement", toggle_enhancement)
+mp.register_script_message("set_enhancement", function(val)
+    set_enhancement(val == "yes" or val == "true" or val == "1" or val == "on", false)
+end)
+mp.register_script_message("toggle_ab_test", toggle_ab_test)
 
 -- Re-apply pipeline when file loads
 mp.register_event("file-loaded", function()

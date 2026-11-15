@@ -19,6 +19,18 @@
     <binary>media-player-pro</binary>
   </provides>
   <releases>
+    <release version="1.4" date="2026-11-15">
+      <description>
+        <p>Media Player Pro v1.4 Release:</p>
+        <ul>
+          <li>Redesigned content-focused high-contrast settings menu with crystal-clear pure white typography and high-visibility status badge pills</li>
+          <li>Solid deep obsidian popup backing preventing background video bleed-through and ensuring perfect legibility</li>
+          <li>Fixed Video Enhancement toggle: resolved inter-script communication and robust shader path resolution</li>
+          <li>Keyboard shortcuts: Ctrl+1 (Flip Video Horizontally) and Ctrl+2 (Rotate Video 90° Clockwise)</li>
+          <li>Enhanced touch hitboxes across settings and aspect ratio submenus</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3" date="2026-11-15">
       <description>
         <p>Media Player Pro v1.3 Release:</p>

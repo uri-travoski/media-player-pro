@@ -29,7 +29,7 @@ local C_TRACK_BG      = "&H3A3A3A&" -- Translucent unplayed track
 local C_HOVER_BG      = "&H281216&" -- Red-tinted glass hover
 local C_POPUP_BG      = "&H0E0A0C&" -- Deep translucent popover background
 
-local CURRENT_VERSION = "1.3"
+local CURRENT_VERSION = "1.4"
 local GITHUB_REPO     = "uri-travoski/media-player-pro"
 local DEFAULT_RELEASE_URL = "https://github.com/uri-travoski/media-player-pro/releases/latest"
 
@@ -672,100 +672,146 @@ render = function()
 
     -- 4. Speed Play Dropup Popover Menu
     if state.speed_menu_open then
-        local spd_pop_w = 120
-        local spd_pop_h = #speeds * 28 + 16
+        local spd_pop_w = 140
+        local spd_pop_h = #speeds * 32 + 16
         local spd_pop_x = btn_spd_x - math.floor(spd_pop_w / 2)
         local spd_pop_y = L.dock_y - spd_pop_h - 12
 
-        -- Popover Background
-        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a&H18&\\blur4}{\\p1}%s{\\p0}",
-            C_ACCENT, C_POPUP_BG, ass_rect(spd_pop_x, spd_pop_y, spd_pop_w, spd_pop_h, 8)))
+        -- Popover Background: Solid black backplate + frosted border
+        add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c&H080709&\\1a&H00&}{\\p1}%s{\\p0}",
+            ass_rect(spd_pop_x, spd_pop_y, spd_pop_w, spd_pop_h, 8)))
+        add(string.format("{\\pos(0,0)\\bord1.5\\3c%s\\3a&H30&\\1c&H141014&\\1a&H20&\\blur4}{\\p1}%s{\\p0}",
+            C_ACCENT, ass_rect(spd_pop_x, spd_pop_y, spd_pop_w, spd_pop_h, 8)))
 
         for idx, spd in ipairs(speeds) do
-            local item_y = spd_pop_y + 8 + (idx - 1) * 28
-            local is_hover = inside(state.mouse_x, state.mouse_y, spd_pop_x, item_y, spd_pop_w, 28)
+            local item_y = spd_pop_y + 8 + (idx - 1) * 32
+            local is_hover = inside(state.mouse_x, state.mouse_y, spd_pop_x, item_y, spd_pop_w, 32)
             local is_selected = math.abs(state.speed - spd) < 0.05
             
-            if is_hover or is_selected then
-                add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H40&}{\\p1}%s{\\p0}",
-                    is_selected and C_ACCENT or C_HOVER_BG, ass_rect(spd_pop_x + 4, item_y + 1, spd_pop_w - 8, 26, 4)))
+            if is_selected then
+                add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
+                    C_ACCENT, ass_rect(spd_pop_x + 6, item_y + 2, spd_pop_w - 12, 28, 5)))
+            elseif is_hover then
+                add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H40&\\1c&H301820&\\1a&H00&}{\\p1}%s{\\p0}",
+                    C_ACCENT, ass_rect(spd_pop_x + 6, item_y + 2, spd_pop_w - 12, 28, 5)))
             end
 
             local label = string.format("%.2fx", spd):gsub("%.00", ""):gsub("(%..-)0+$", "%1")
             if spd == 1.0 then label = label .. " (Normal)" end
-            add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b%d\\fs13\\1c%s}%s",
-                spd_pop_x + math.floor(spd_pop_w / 2), item_y + 14, is_selected and 1 or 0,
-                is_selected and C_ACCENT or (is_hover and C_WHITE or C_TEXT_MUTED), label))
+            add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b%d\\fs14\\1c%s\\1a&H00&}%s",
+                spd_pop_x + math.floor(spd_pop_w / 2), item_y + 16, is_selected and 1 or 0,
+                is_selected and C_WHITE or (is_hover and C_WHITE or "&HE8E8E8&"), label))
         end
     end
 
-    -- 5. Settings Popover Menu
+    -- 5. Settings Popover Menu (Content-focused, High-contrast, Legible)
     if state.settings_menu_open then
-        local pop_w = 280
-        local pop_h = (state.settings_sub_menu == "aspect") and 330 or 400
-        local pop_x = L.dock_x + L.dock_w - pop_w
-        local pop_y = L.dock_y - pop_h - 12
+        local pop_w = 340
+        local pop_h = (state.settings_sub_menu == "aspect") and 340 or 440
+        local pop_x = math.max(16, math.min(state.window_w - pop_w - 16, L.dock_x + L.dock_w - pop_w))
+        local pop_y = math.max(16, L.dock_y - pop_h - 12)
 
-        -- Popover Frosted Background with Rounded Corners & Red Glow
-        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a&H14&\\blur6}{\\p1}%s{\\p0}",
-            C_ACCENT, C_POPUP_BG, ass_rect(pop_x, pop_y, pop_w, pop_h, 10)))
+        -- 1. Solid Deep Obsidian Backing (100% opaque to guarantee zero video bleed-through)
+        add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c&H080709&\\1a&H00&}{\\p1}%s{\\p0}",
+            ass_rect(pop_x, pop_y, pop_w, pop_h, 12)))
 
-        -- Header
-        add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs12\\1c%s\\1a&H40&}%s",
-            pop_x + 16, pop_y + 18, C_TEXT_MUTED, "MEDIA PLAYER PRO SETTINGS"))
+        -- 2. Frosted Red Border & Subtle Glass Glow
+        add(string.format("{\\pos(0,0)\\bord1.5\\3c%s\\3a&H30&\\1c&H141014&\\1a&H20&\\blur4}{\\p1}%s{\\p0}",
+            C_ACCENT, ass_rect(pop_x, pop_y, pop_w, pop_h, 12)))
 
         if state.settings_sub_menu == "aspect" then
-            -- Aspect Ratio Selection Submenu
-            add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s}%s",
-                pop_x + 16, pop_y + 42, C_ACCENT, "◀ Aspect Ratio"))
+            -- --- Aspect Ratio Selection Submenu ---
+            local is_back_hover = inside(state.mouse_x, state.mouse_y, pop_x + 10, pop_y + 10, pop_w - 20, 36)
+            add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
+                is_back_hover and C_ACCENT or "&H302025&",
+                is_back_hover and "&H301820&" or "&H1C1417&",
+                ass_rect(pop_x + 10, pop_y + 10, pop_w - 20, 36, 7)))
+            add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs15\\1c%s\\1a&H00&}%s",
+                pop_x + 22, pop_y + 28, C_ACCENT, "◀ Back to Settings"))
+
+            add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs12\\1c&HFFFFFF&\\1a&H00&}%s",
+                pop_x + 18, pop_y + 60, "SELECT DISPLAY ASPECT RATIO"))
 
             for idx, opt in ipairs(aspect_ratios) do
-                local item_y = pop_y + 68 + (idx - 1) * 36
-                local is_hover = inside(state.mouse_x, state.mouse_y, pop_x + 8, item_y, pop_w - 16, 32)
+                local item_y = pop_y + 76 + (idx - 1) * 40
+                local item_w = pop_w - 20
+                local item_h = 35
+                local is_hover = inside(state.mouse_x, state.mouse_y, pop_x + 10, item_y, item_w, item_h)
                 local is_active = (state.aspect_ratio == opt.id)
 
-                if is_hover or is_active then
-                    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H40&}{\\p1}%s{\\p0}",
-                        is_active and C_ACCENT or C_HOVER_BG, ass_rect(pop_x + 8, item_y, pop_w - 16, 32, 6)))
+                if is_active then
+                    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
+                        C_ACCENT, ass_rect(pop_x + 10, item_y, item_w, item_h, 6)))
+                    add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs15\\1c%s\\1a&H00&}%s",
+                        pop_x + 24, item_y + 18, C_WHITE, "●  " .. opt.name))
+                else
+                    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a%s\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
+                        is_hover and C_ACCENT or "&H30282C&", is_hover and "&H30&" or "&H90&",
+                        is_hover and "&H301820&" or "&H181316&", ass_rect(pop_x + 10, item_y, item_w, item_h, 6)))
+                    add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs15\\1c%s\\1a&H00&}%s",
+                        pop_x + 24, item_y + 18, is_hover and C_WHITE or "&HE8E8E8&", "○  " .. opt.name))
                 end
-
-                local marker = is_active and "● " or "○ "
-                add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b%d\\fs12\\1c%s}%s",
-                    pop_x + 16, item_y + 16, is_active and 1 or 0,
-                    is_active and C_ACCENT or (is_hover and C_WHITE or C_TEXT_MUTED), marker .. opt.name))
             end
         else
-            -- Main Settings Menu Items
+            -- --- Main Content-Focused Settings Menu ---
+            add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs15\\1c%s\\1a&H00&}%s",
+                pop_x + 18, pop_y + 22, C_WHITE, "✦ QUICK SETTINGS"))
+
             local is_enh_on = (state.enhancement_enabled ~= false)
+            local is_flip_on = (state.flipped == true)
+            local rot_val = state.rotation or 0
+
             local items = {
-                { key = "open",    label = "📂 Open File / URL ▸", sub = "Ctrl+O" },
-                { key = "enhance", label = "✦ Video Enhancement", sub = is_enh_on and "ON" or "OFF" },
-                { key = "aspect",  label = "📐 Aspect Ratio ▸", sub = get_aspect_display() },
-                { key = "flip",    label = "🪞 Flip Horizontal", sub = state.flipped and "ON" or "OFF" },
-                { key = "rotate",  label = "↻ Rotate 90°", sub = string.format("%d°", state.rotation or 0) },
-                { key = "update",  label = state.update_available and "▲ Update Available! ▸" or "🔄 Check for Updates", sub = state.update_available and (state.latest_version or "Download") or ("v" .. CURRENT_VERSION) },
-                { key = "audio",   label = "🎵 Audio Track ▸", sub = "Cycle" },
-                { key = "sub",     label = "💬 Subtitles ▸", sub = "Toggle" },
-                { key = "stats",   label = "ℹ Video Statistics", sub = "Display" },
+                { key = "enhance", label = "✦ Video Enhancement", badge = is_enh_on and "ON" or "OFF", is_active = is_enh_on },
+                { key = "aspect",  label = "📐 Aspect Ratio",      badge = get_aspect_display() .. " ▸", is_active = (state.aspect_ratio ~= "-1") },
+                { key = "flip",    label = "🪞 Flip Horizontal",   badge = is_flip_on and "ON" or "OFF", is_active = is_flip_on },
+                { key = "rotate",  label = "↻ Rotate 90°",         badge = string.format("%d°", rot_val), is_active = (rot_val > 0) },
+                { key = "audio",   label = "🎵 Audio Track",       badge = "Cycle ▸", is_active = false },
+                { key = "sub",     label = "💬 Subtitles",         badge = "Toggle ▸", is_active = false },
+                { key = "stats",   label = "ℹ Video Statistics",  badge = "Display", is_active = false },
+                { key = "open",    label = "📂 Open Media File",   badge = "Open ▸", is_active = false },
+                { key = "update",  label = state.update_available and "▲ Update Available!" or "🔄 Version Info", badge = state.update_available and "Get ▸" or ("v" .. CURRENT_VERSION), is_active = state.update_available },
             }
 
             for idx, it in ipairs(items) do
-                local item_y = pop_y + 40 + (idx - 1) * 38
-                local is_hover = inside(state.mouse_x, state.mouse_y, pop_x + 8, item_y, pop_w - 16, 34)
+                local item_y = pop_y + 44 + (idx - 1) * 42
+                local item_w = pop_w - 20
+                local item_h = 38
+                local is_hover = inside(state.mouse_x, state.mouse_y, pop_x + 10, item_y, item_w, item_h)
 
+                -- High-contrast Card Row Background (Solid, zero dark-on-dark bleed)
                 if is_hover then
-                    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H40&}{\\p1}%s{\\p0}",
-                        C_HOVER_BG, ass_rect(pop_x + 8, item_y, pop_w - 16, 34, 6)))
+                    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H30&\\1c&H301820&\\1a&H00&}{\\p1}%s{\\p0}",
+                        C_ACCENT, ass_rect(pop_x + 10, item_y, item_w, item_h, 7)))
+                else
+                    add(string.format("{\\pos(0,0)\\bord1\\3c&H2C2226&\\3a&H80&\\1c&H181316&\\1a&H00&}{\\p1}%s{\\p0}",
+                        ass_rect(pop_x + 10, item_y, item_w, item_h, 7)))
                 end
 
-                local is_enh_highlight = (it.key == "enhance" and is_enh_on)
-                local label_color = (it.key == "update" and state.update_available) and C_ACCENT or (is_hover and C_ACCENT or C_WHITE)
-                local sub_color = is_enh_highlight and C_ACCENT or ((it.key == "update" and state.update_available) and C_ACCENT or C_TEXT_MUTED)
+                -- Label: 100% Solid Pure White Text (Never dark-on-dark)
+                local label_color = (it.key == "update" and state.update_available) and C_ACCENT or (is_hover and C_WHITE or "&HF4F4F4&")
+                add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs15\\1c%s\\1a&H00&}%s",
+                    pop_x + 22, item_y + 19, label_color, it.label))
 
-                add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs13\\1c%s}%s",
-                    pop_x + 16, item_y + 17, label_color, it.label))
-                add(string.format("{\\an6\\pos(%d,%d)\\fnDejaVu Sans\\fs12\\1c%s\\1a&H30&}%s",
-                    pop_x + pop_w - 16, item_y + 17, sub_color, it.sub))
+                -- Right Status Badge Pill (High-contrast, easy to read)
+                local badge_w = math.max(68, math.floor(#it.badge * 9.5) + 16)
+                local badge_h = 24
+                local badge_x = pop_x + pop_w - badge_w - 18
+                local badge_y = item_y + 7
+
+                if it.is_active then
+                    -- Active Glowing Red Badge Pill
+                    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
+                        C_ACCENT, ass_rect(badge_x, badge_y, badge_w, badge_h, 5)))
+                    add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs13\\1c%s\\1a&H00&}%s",
+                        badge_x + math.floor(badge_w / 2), badge_y + math.floor(badge_h / 2), C_WHITE, it.badge))
+                else
+                    -- Inactive Crisp Charcoal & Light Silver Badge Pill
+                    add(string.format("{\\pos(0,0)\\bord1\\3c&H443C40&\\3a&H00&\\1c&H262024&\\1a&H00&}{\\p1}%s{\\p0}",
+                        ass_rect(badge_x, badge_y, badge_w, badge_h, 5)))
+                    add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs13\\1c&HE8E8E8&\\1a&H00&}%s",
+                        badge_x + math.floor(badge_w / 2), badge_y + math.floor(badge_h / 2), it.badge))
+                end
             end
         end
     end
@@ -926,15 +972,15 @@ local function on_mouse_button(table)
 
         -- Check Speed Popover clicks
         if state.speed_menu_open then
-            local spd_pop_w = 120
-            local spd_pop_h = #speeds * 28 + 16
+            local spd_pop_w = 140
+            local spd_pop_h = #speeds * 32 + 16
             local spd_pop_x = (L.dock_x + 242) - math.floor(spd_pop_w / 2)
             local spd_pop_y = L.dock_y - spd_pop_h - 12
 
             if inside(x, y, spd_pop_x, spd_pop_y, spd_pop_w, spd_pop_h) then
                 for idx, spd in ipairs(speeds) do
-                    local item_y = spd_pop_y + 8 + (idx - 1) * 28
-                    if inside(x, y, spd_pop_x, item_y, spd_pop_w, 28) then
+                    local item_y = spd_pop_y + 8 + (idx - 1) * 32
+                    if inside(x, y, spd_pop_x, item_y, spd_pop_w, 32) then
                         mp.set_property_number("speed", spd)
                         state.speed_menu_open = false
                         render()
@@ -944,28 +990,29 @@ local function on_mouse_button(table)
             else
                 state.speed_menu_open = false
                 render()
+                return
             end
         end
 
         -- Check Settings Popover clicks
         if state.settings_menu_open then
-            local pop_w = 280
-            local pop_h = 320
-            local pop_x = L.dock_x + L.dock_w - pop_w
-            local pop_y = L.dock_y - pop_h - 12
+            local pop_w = 340
+            local pop_h = (state.settings_sub_menu == "aspect") and 340 or 440
+            local pop_x = math.max(16, math.min(state.window_w - pop_w - 16, L.dock_x + L.dock_w - pop_w))
+            local pop_y = math.max(16, L.dock_y - pop_h - 12)
 
             if inside(x, y, pop_x, pop_y, pop_w, pop_h) then
                 if state.settings_sub_menu == "aspect" then
-                    -- Click Back
-                    if inside(x, y, pop_x, pop_y + 36, pop_w, 28) then
+                    -- Click Back to Settings
+                    if inside(x, y, pop_x + 8, pop_y + 8, pop_w - 16, 40) then
                         state.settings_sub_menu = nil
                         render()
                         return
                     end
-                    -- Aspect ratios
+                    -- Aspect ratio choices
                     for idx, opt in ipairs(aspect_ratios) do
-                        local item_y = pop_y + 68 + (idx - 1) * 36
-                        if inside(x, y, pop_x, item_y, pop_w, 32) then
+                        local item_y = pop_y + 76 + (idx - 1) * 40
+                        if inside(x, y, pop_x + 8, item_y - 2, pop_w - 16, 39) then
                             mp.set_property("video-aspect-override", opt.id)
                             state.aspect_ratio = opt.id
                             mp.osd_message(string.format("Aspect Ratio: %s", opt.name), 2.0)
@@ -975,25 +1022,31 @@ local function on_mouse_button(table)
                         end
                     end
                 else
-                    -- Main Settings Items
-                    local items = { "open", "enhance", "aspect", "flip", "rotate", "update", "audio", "sub", "stats" }
+                    -- Main Content-Focused Settings Items
+                    local items = { "enhance", "aspect", "flip", "rotate", "audio", "sub", "stats", "open", "update" }
                     for idx, key in ipairs(items) do
-                        local item_y = pop_y + 40 + (idx - 1) * 38
-                        if inside(x, y, pop_x, item_y, pop_w, 34) then
-                            if key == "open" then
-                                open_file_dialog()
-                                state.settings_menu_open = false
-                            elseif key == "enhance" then
-                                if _G.mpp_toggle_enhancement then
-                                    _G.mpp_toggle_enhancement()
-                                end
-                                state.enhancement_enabled = _G.mpp_is_enhancement_enabled and _G.mpp_is_enhancement_enabled() or not state.enhancement_enabled
+                        local item_y = pop_y + 44 + (idx - 1) * 42
+                        if inside(x, y, pop_x + 8, item_y - 2, pop_w - 16, 42) then
+                            if key == "enhance" then
+                                mp.commandv("script-message", "toggle_enhancement")
+                                state.enhancement_enabled = not state.enhancement_enabled
                             elseif key == "aspect" then
                                 state.settings_sub_menu = "aspect"
                             elseif key == "flip" then
-                                mp.commandv("script-binding", "glass_flip_horizontal")
+                                mp.commandv("script-message", "toggle_flip_horizontal")
+                                state.flipped = not state.flipped
                             elseif key == "rotate" then
-                                mp.commandv("script-binding", "glass_rotate_90")
+                                mp.commandv("script-message", "rotate_video_90")
+                                state.rotation = ((state.rotation or 0) + 90) % 360
+                            elseif key == "audio" then
+                                mp.commandv("cycle", "audio")
+                            elseif key == "sub" then
+                                mp.commandv("cycle", "sub")
+                            elseif key == "stats" then
+                                mp.commandv("script-binding", "stats/display-stats-toggle")
+                            elseif key == "open" then
+                                open_file_dialog()
+                                state.settings_menu_open = false
                             elseif key == "update" then
                                 if state.update_available then
                                     open_in_browser(state.release_url)
@@ -1001,12 +1054,6 @@ local function on_mouse_button(table)
                                     check_for_updates(true)
                                 end
                                 state.settings_menu_open = false
-                            elseif key == "audio" then
-                                mp.commandv("cycle", "audio")
-                            elseif key == "sub" then
-                                mp.commandv("cycle", "sub")
-                            elseif key == "stats" then
-                                mp.commandv("script-binding", "stats/display-stats-toggle")
                             end
                             render()
                             return
@@ -1018,6 +1065,7 @@ local function on_mouse_button(table)
                 state.settings_menu_open = false
                 state.settings_sub_menu = nil
                 render()
+                return
             end
         end
 
@@ -1226,12 +1274,20 @@ mp.observe_property("idle-active", "bool", function(_, val)
 end)
 
 mp.observe_property("osd-width", "number", function(_, val)
-    state.window_w = val or 1280
+    if val and val > 0 then
+        state.window_w = val
+    elseif not state.window_w or state.window_w <= 0 then
+        state.window_w = 1280
+    end
     render()
 end)
 
 mp.observe_property("osd-height", "number", function(_, val)
-    state.window_h = val or 720
+    if val and val > 0 then
+        state.window_h = val
+    elseif not state.window_h or state.window_h <= 0 then
+        state.window_h = 720
+    end
     render()
 end)
 

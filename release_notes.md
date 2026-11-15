@@ -1,19 +1,24 @@
-### Media Player Pro v1.3
+### Media Player Pro v1.4
 
 Modern, high-performance media player based on [mpv](https://github.com/mpv-player/mpv).
 
-#### What's New in v1.3:
-- **TrueTheater GPU Video Enhancement Engine**:
-  - **Single-Pass Master GLSL Shader** (`truetheater_enhance.glsl`): Real-time Contrast Adaptive Sharpening (CAS), Adaptive Local Tone Mapping (shadow lift & S-curve contrast without crushing blacks or clipping whites), and Skin-Tone Protected Vibrance (+4% non-skin boost while preserving natural skin tones).
-  - **Single-Click ON/OFF Setting**: Simplified Settings menu with a single `✦ Video Enhancement: ON/OFF` toggle, persistent across restarts (`~/.config/media-player-pro/config.json`).
-  - **HQ Scaling & Deband Pipeline**: Automatically engages `ewa_lanczossharp` chroma/luma scaling and deband filtering when active, reverting to lightweight defaults when off.
-  - **Keyboard Shortcuts**: `Ctrl+E` to toggle enhancement on the fly with OSD feedback; `Ctrl+Shift+E` for split-screen 50% A/B before/after diagnostic comparison mode.
-- **Interactive Button Hover Tooltips**: Floating frosted-glass tooltips appear above dock controls on mouse hover (Seek -7s, Play/Pause, Seek +7s, Playback Speed, Mute / Volume, and Settings).
-- **Interactive Aspect Ratio Submenu**: Displays the currently active aspect ratio in Settings (e.g., `Auto`, `16:9`, `4:3`, `21:9`, `16:10`, `1:1`) and provides an interactive sub-selector to choose any ratio instantly.
-- **Streamlined Control Bar**: Removed minimize/maximize window controls to provide a cleaner, distraction-free transparent playback dock.
+#### What's New in v1.4:
+- **Content-Focused & High-Contrast Settings Menu**:
+  - Redesigned with a **100% solid deep obsidian backing** (`#080709`) to completely eliminate video background bleed-through and guarantee maximum legibility.
+  - Replaced all small and dark-on-dark text with **solid pure white** (`#FFFFFF`) and bright silver (`#E8E8E8`) typography at `15px bold`.
+  - High-visibility status badge pills with active vibrant red indicators (`[ ON ]`, active ratio) and crisp silver borders for inactive controls.
+  - Prioritized content-first playback controls at the top: Video Enhancement, Aspect Ratio, Flip Horizontal, Rotate 90°, Audio Track, Subtitles, Video Statistics, Open File, and Version Info.
+  - Expanded interactive click hitboxes for effortless mouse navigation.
+- **Fixed Video Enhancement Toggle**:
+  - Resolved mpv multi-script environment isolation by implementing explicit cross-script IPC messaging (`toggle_enhancement`, `set_enhancement`).
+  - Added robust absolute shader path resolution across local and system installation directories (`truetheater_enhance.glsl`, `flip_horizontal.glsl`).
+  - Video enhancement toggles reliably via mouse click in the Settings menu as well as `Ctrl+E`.
+- **Keyboard Shortcuts for Video Transformations**:
+  - `Ctrl+1`: Flip video horizontally (mirror view) with instant OSD feedback.
+  - `Ctrl+2`: Rotate video by 90° clockwise (0° → 90° → 180° → 270°) with instant OSD feedback.
 
 #### Included Packages:
-- **AppImage**: `Media_Player_Pro-1.3-x86_64.AppImage` (Universal portable bundle)
-- **Debian / Ubuntu**: `media-player-pro_1.3_amd64.deb`
-- **Fedora / RHEL**: `media-player-pro-1.3-1.x86_64.rpm`
-- **Flatpak**: `media-player-pro-1.3.flatpak.tar.gz` (and Flatpak bundle manifest)
+- **AppImage**: `Media_Player_Pro-1.4-x86_64.AppImage` (Universal portable bundle)
+- **Debian / Ubuntu**: `media-player-pro_1.4_amd64.deb`
+- **Fedora / RHEL**: `media-player-pro-1.4-1.x86_64.rpm`
+- **Flatpak**: `media-player-pro-1.4.flatpak.tar.gz` (and Flatpak bundle manifest)
