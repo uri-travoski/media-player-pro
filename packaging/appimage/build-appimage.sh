@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="1.5"
+VERSION="1.6"
 ARCH="x86_64"
 OUTPUT_DIR="${1:-$(pwd)/dist}"
 mkdir -p "$OUTPUT_DIR"

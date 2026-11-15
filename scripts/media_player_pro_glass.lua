@@ -29,7 +29,7 @@ local C_TRACK_BG      = "&H3A3A3A&" -- Translucent unplayed track
 local C_HOVER_BG      = "&H281216&" -- Red-tinted glass hover
 local C_POPUP_BG      = "&H0E0A0C&" -- Deep translucent popover background
 
-local CURRENT_VERSION = "1.5"
+local CURRENT_VERSION = "1.6"
 local GITHUB_REPO     = "uri-travoski/media-player-pro"
 local DEFAULT_RELEASE_URL = "https://github.com/uri-travoski/media-player-pro/releases/latest"
 

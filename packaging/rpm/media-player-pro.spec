@@ -1,5 +1,5 @@
 Name:           media-player-pro
-Version:        1.5
+Version:        1.6
 Release:        1%{?dist}
 Summary:        Modern Frosted Glass Media Player based on mpv
 License:        GPLv2+
@@ -41,6 +41,12 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
 fi
 
 %changelog
+* Mon Nov 16 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.6-1
+- Enabled double-click to toggle fullscreen strictly in video area above seekbar
+- Suppressed double-click fullscreen on seekbar, dock controls, and popover menus
+- Added direct GitHub update download button under Settings menu
+- Dynamic window resize and fullscreen geometry recalculation
+
 * Sun Nov 15 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.5-1
 - Added dedicated Fullscreen toggle button on the dock to the left of Settings
 - Disabled accidental double-click fullscreen toggle on rapid button/seek presses

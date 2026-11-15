@@ -1,4 +1,4 @@
-# Media Player Pro (v1.5)
+# Media Player Pro (v1.6)
 
 > **Media Player Pro** is a modern, high-performance Linux media player built on top of [mpv](https://github.com/mpv-player/mpv), featuring a sleek transparent skin with vibrant red accents, non-obstructive floating playback controls, watch history memory with interactive resume, cursor-targeted zoom/pan, interactive hover tooltips, aspect ratio picker, and a real-time TrueTheater GPU video enhancement engine.
 
@@ -38,8 +38,8 @@
 | Action | Mouse / Shortcut |
 | :--- | :--- |
 | **Play / Pause** | `Space` or Click Center Play Button |
-| **Seek -7 Seconds** | `Left Arrow` or Click `◄◄` |
-| **Seek +7 Seconds** | `Right Arrow` or Click `►►` |
+| **Seek -5 Seconds** | `Left Arrow` or Click `◄◄` |
+| **Seek +5 Seconds** | `Right Arrow` or Click `►►` |
 | **Resume Unfinished Video** | Click `[ Resume ]` or Press `Enter` |
 | **Restart from Beginning** | Click `[ Start Over ]` or Press `Home` |
 | **Dismiss Resume Prompt** | Click `[ ✕ ]` or Press `Esc` |
@@ -53,8 +53,8 @@
 | **Rotate Video 90°** | `Ctrl + 2` or Settings Menu (`⚙`) |
 | **Toggle Video Enhancement** | `Ctrl + E` or Settings Menu (`⚙`) |
 | **Split-Screen A/B Diagnostic** | `Ctrl + Shift + E` |
-| **Toggle Fullscreen** | Fullscreen Button or `f` |
-| **Exit Fullscreen** | Fullscreen Button or `ESC` |
+| **Toggle Fullscreen** | Double-Click Video (Above Seekbar) / Fullscreen Button / `f` |
+| **Exit Fullscreen** | Double-Click Video / Fullscreen Button / `ESC` |
 
 ---
 
@@ -64,25 +64,25 @@ Media Player Pro is distributed in 4 universal packaging formats available from 
 
 ### 1. AppImage (Universal Linux)
 ```bash
-chmod +x Media_Player_Pro-1.5-x86_64.AppImage
-./Media_Player_Pro-1.5-x86_64.AppImage video.mp4
+chmod +x Media_Player_Pro-1.6-x86_64.AppImage
+./Media_Player_Pro-1.6-x86_64.AppImage video.mp4
 ```
 
 ### 2. Debian / Ubuntu (.deb)
 ```bash
-sudo dpkg -i media-player-pro_1.5_amd64.deb
+sudo dpkg -i media-player-pro_1.6_amd64.deb
 sudo apt-get install -f
 ```
 
 ### 3. Fedora / RHEL (.rpm)
 ```bash
-sudo rpm -ivh media-player-pro-1.5-1.x86_64.rpm
+sudo rpm -ivh media-player-pro-1.6-1.x86_64.rpm
 ```
 
 ### 4. Flatpak Bundle
 ```bash
-flatpak install media-player-pro-1.5.flatpak
-# or extract media-player-pro-1.5.flatpak.tar.gz
+flatpak install media-player-pro-1.6.flatpak
+# or extract media-player-pro-1.6.flatpak.tar.gz
 flatpak run org.mediaplayerpro.MediaPlayerPro video.mp4
 ```
 

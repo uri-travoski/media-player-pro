@@ -19,6 +19,17 @@
     <binary>media-player-pro</binary>
   </provides>
   <releases>
+    <release version="1.6" date="2026-11-16">
+      <description>
+        <p>Media Player Pro v1.6 Release:</p>
+        <ul>
+          <li>Added double-click to toggle fullscreen strictly in the video area above the seekbar</li>
+          <li>Double-click fullscreen is suppressed on the seekbar, dock controls, and popover menus to avoid accidental triggers during rapid seeking</li>
+          <li>Added direct GitHub update download button under Settings menu</li>
+          <li>Enhanced dynamic resize and fullscreen geometry tracking</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.5" date="2026-11-15">
       <description>
         <p>Media Player Pro v1.5 Release:</p>
