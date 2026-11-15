@@ -29,7 +29,7 @@ local C_TRACK_BG      = "&H3A3A3A&" -- Translucent unplayed track
 local C_HOVER_BG      = "&H281216&" -- Red-tinted glass hover
 local C_POPUP_BG      = "&H0E0A0C&" -- Deep translucent popover background
 
-local CURRENT_VERSION = "1.4"
+local CURRENT_VERSION = "1.5"
 local GITHUB_REPO     = "uri-travoski/media-player-pro"
 local DEFAULT_RELEASE_URL = "https://github.com/uri-travoski/media-player-pro/releases/latest"
 
@@ -71,6 +71,7 @@ local state = {
     aspect_ratio = "-1",
     flipped = false,
     rotation = 0,
+    fullscreen = false,
     
     update_available = false,
     latest_version = CURRENT_VERSION,
@@ -347,6 +348,33 @@ local function ass_skip_forward(cx, cy, w, h)
     return t1 .. " " .. t2
 end
 
+-- Fullscreen / Exit-Fullscreen Vector Icon
+local function ass_fullscreen_icon(cx, cy, is_fs)
+    if is_fs then
+        -- Exit Fullscreen: 4 corner brackets pointing inward toward center
+        local t1 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
+            cx - 2, cy - 2, cx - 7, cy - 2, cx - 7, cy - 4, cx - 4, cy - 4, cx - 4, cy - 7, cx - 2, cy - 7)
+        local t2 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
+            cx + 2, cy - 2, cx + 7, cy - 2, cx + 7, cy - 4, cx + 4, cy - 4, cx + 4, cy - 7, cx + 2, cy - 7)
+        local t3 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
+            cx - 2, cy + 2, cx - 7, cy + 2, cx - 7, cy + 4, cx - 4, cy + 4, cx - 4, cy + 7, cx - 2, cy + 7)
+        local t4 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
+            cx + 2, cy + 2, cx + 7, cy + 2, cx + 7, cy + 4, cx + 4, cy + 4, cx + 4, cy + 7, cx + 2, cy + 7)
+        return t1 .. " " .. t2 .. " " .. t3 .. " " .. t4
+    else
+        -- Enter Fullscreen: 4 corner brackets pointing outward
+        local t1 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
+            cx - 7, cy - 7, cx - 2, cy - 7, cx - 2, cy - 5, cx - 5, cy - 5, cx - 5, cy - 2, cx - 7, cy - 2)
+        local t2 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
+            cx + 7, cy - 7, cx + 2, cy - 7, cx + 2, cy - 5, cx + 5, cy - 5, cx + 5, cy - 2, cx + 7, cy - 2)
+        local t3 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
+            cx - 7, cy + 7, cx - 2, cy + 7, cx - 2, cy + 5, cx - 5, cy + 5, cx - 5, cy + 2, cx - 7, cy + 2)
+        local t4 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
+            cx + 7, cy + 7, cx + 2, cy + 7, cx + 2, cy + 5, cx + 5, cy + 5, cx + 5, cy + 2, cx + 7, cy + 2)
+        return t1 .. " " .. t2 .. " " .. t3 .. " " .. t4
+    end
+end
+
 -- Layout Calculation
 local function get_layout()
     local w = state.window_w
@@ -559,7 +587,7 @@ render = function()
     -- 3. Floating Bottom Controls (Only buttons and controls have background/color)
     local cy = L.dock_y + 38
 
-    -- Button 1: Backward Skip Button (◄◄) - 7s skip without text
+    -- Button 1: Backward Skip Button (◄◄) - 5s skip without text
     local btn_back_x = L.dock_x + 42
     local is_back_hover = inside(state.mouse_x, state.mouse_y, btn_back_x - 22, cy - 22, 44, 44)
     add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
@@ -568,7 +596,7 @@ render = function()
     add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
         is_back_hover and C_ACCENT or C_WHITE, ass_skip_backward(btn_back_x, cy, 14, 7)))
     if is_back_hover then
-        tooltip = { text = "Seek -7s (Left Arrow)", x = btn_back_x, y = cy - 34 }
+        tooltip = { text = "Seek -5s (Left Arrow)", x = btn_back_x, y = cy - 34 }
     end
 
     -- Button 2: Play / Pause Center Button
@@ -588,7 +616,7 @@ render = function()
         tooltip = { text = state.pause and "Play (Space)" or "Pause (Space)", x = btn_play_x, y = cy - 38 }
     end
 
-    -- Button 3: Forward Skip Button (►►) - 7s skip without text
+    -- Button 3: Forward Skip Button (►►) - 5s skip without text
     local btn_fwd_x = L.dock_x + 166
     local is_fwd_hover = inside(state.mouse_x, state.mouse_y, btn_fwd_x - 22, cy - 22, 44, 44)
     add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
@@ -597,7 +625,7 @@ render = function()
     add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
         is_fwd_hover and C_ACCENT or C_WHITE, ass_skip_forward(btn_fwd_x, cy, 14, 7)))
     if is_fwd_hover then
-        tooltip = { text = "Seek +7s (Right Arrow)", x = btn_fwd_x, y = cy - 34 }
+        tooltip = { text = "Seek +5s (Right Arrow)", x = btn_fwd_x, y = cy - 34 }
     end
 
     -- Button 4: Speed Play Dropup Button
@@ -616,7 +644,7 @@ render = function()
     end
 
     -- Button 5: Volume Slider Section (Streamlined layout)
-    local vol_x = L.dock_x + L.dock_w - 200
+    local vol_x = L.dock_x + L.dock_w - 240
     local is_vol_icon_hover = inside(state.mouse_x, state.mouse_y, vol_x - 18, cy - 18, 36, 36)
     local vol_icon = state.mute and "🔇" or (state.volume > 50 and "🔊" or (state.volume > 0 and "🔉" or "🔈"))
     add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\fs18\\1c%s}%s",
@@ -656,8 +684,23 @@ render = function()
         tooltip = { text = string.format("Volume: %s", vol_text), x = vol_track_x + math.floor(vol_track_w / 2), y = cy - 30 }
     end
 
-    -- Button 6: Settings / Menu Button (Far Right)
-    local btn_menu_x = L.dock_x + L.dock_w - 24
+    -- Button 6: Fullscreen Toggle Button (Left of Settings Button)
+    local btn_fs_x = L.dock_x + L.dock_w - 60
+    local is_fs_hover = inside(state.mouse_x, state.mouse_y, btn_fs_x - 18, cy - 18, 36, 36)
+    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
+        is_fs_hover and C_ACCENT or C_GLASS_BORDER,
+        is_fs_hover and C_HOVER_BG or C_GLASS_BG,
+        is_fs_hover and "&H10&" or "&H80&",
+        ass_rect(btn_fs_x - 16, cy - 16, 32, 32, 6)))
+    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
+        is_fs_hover and C_ACCENT or C_WHITE,
+        ass_fullscreen_icon(btn_fs_x, cy, state.fullscreen)))
+    if is_fs_hover then
+        tooltip = { text = state.fullscreen and "Exit Fullscreen (ESC / f)" or "Fullscreen (f)", x = btn_fs_x, y = cy - 34 }
+    end
+
+    -- Button 7: Settings / Menu Button (Far Right)
+    local btn_menu_x = L.dock_x + L.dock_w - 22
     local is_menu_hover = inside(state.mouse_x, state.mouse_y, btn_menu_x - 18, cy - 18, 36, 36)
     add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
         state.settings_menu_open and C_ACCENT or C_GLASS_BORDER,
@@ -892,7 +935,7 @@ local function on_mouse_move(_, val)
             local target_sec = ratio * state.duration
             mp.commandv("seek", target_sec, "absolute")
         elseif state.active_drag == 'volume' then
-            local vol_track_x = L.dock_x + L.dock_w - 200 + 22
+            local vol_track_x = L.dock_x + L.dock_w - 240 + 22
             local vol_track_w = 88
             local ratio = math.max(0, math.min(1.3, (x - vol_track_x) / vol_track_w))
             local new_vol = math.floor(ratio * 100)
@@ -1093,10 +1136,10 @@ local function on_mouse_button(table)
             return
         end
 
-        -- Check Backward Skip Button (◄◄) - 7s skip
+        -- Check Backward Skip Button (◄◄) - 5s skip
         local btn_back_x = L.dock_x + 42
         if inside(x, y, btn_back_x - 22, cy - 22, 44, 44) then
-            mp.commandv("seek", -7, "relative")
+            mp.commandv("seek", -5, "relative")
             render()
             return
         end
@@ -1113,10 +1156,10 @@ local function on_mouse_button(table)
             return
         end
 
-        -- Check Forward Skip Button (►►) - 7s skip
+        -- Check Forward Skip Button (►►) - 5s skip
         local btn_fwd_x = L.dock_x + 166
         if inside(x, y, btn_fwd_x - 22, cy - 22, 44, 44) then
-            mp.commandv("seek", 7, "relative")
+            mp.commandv("seek", 5, "relative")
             render()
             return
         end
@@ -1131,7 +1174,7 @@ local function on_mouse_button(table)
         end
 
         -- Check Volume Mute Icon
-        local vol_x = L.dock_x + L.dock_w - 200
+        local vol_x = L.dock_x + L.dock_w - 240
         if inside(x, y, vol_x - 18, cy - 18, 36, 36) then
             mp.commandv("cycle", "mute")
             render()
@@ -1150,8 +1193,16 @@ local function on_mouse_button(table)
             return
         end
 
+        -- Check Fullscreen Button (left of Settings)
+        local btn_fs_x = L.dock_x + L.dock_w - 60
+        if inside(x, y, btn_fs_x - 18, cy - 18, 36, 36) then
+            mp.commandv("cycle", "fullscreen")
+            render()
+            return
+        end
+
         -- Check Settings Button
-        local btn_menu_x = L.dock_x + L.dock_w - 24
+        local btn_menu_x = L.dock_x + L.dock_w - 22
         if inside(x, y, btn_menu_x - 18, cy - 18, 36, 36) then
             state.settings_menu_open = not state.settings_menu_open
             state.settings_sub_menu = nil
@@ -1291,10 +1342,16 @@ mp.observe_property("osd-height", "number", function(_, val)
     render()
 end)
 
+mp.observe_property("fullscreen", "bool", function(_, val)
+    state.fullscreen = (val == true)
+    render()
+end)
+
 mp.observe_property("mouse-pos", "native", on_mouse_move)
 
--- Key & Mouse Bindings
+-- Key & Mouse Bindings (MBTN_LEFT_DBL ignored to prevent accidental fullscreen when clicking buttons fast)
 mp.add_forced_key_binding("MBTN_LEFT", "glass_mouse_click", on_mouse_button, {complex = true})
+mp.add_forced_key_binding("MBTN_LEFT_DBL", "glass_mouse_dbl_click", function() end)
 mp.add_forced_key_binding("WHEEL_UP", "glass_wheel_up", on_wheel_up)
 mp.add_forced_key_binding("WHEEL_DOWN", "glass_wheel_down", on_wheel_down)
 mp.add_forced_key_binding("ctrl+o", "glass_open_file", open_file_dialog)

@@ -19,6 +19,16 @@
     <binary>media-player-pro</binary>
   </provides>
   <releases>
+    <release version="1.5" date="2026-11-15">
+      <description>
+        <p>Media Player Pro v1.5 Release:</p>
+        <ul>
+          <li>Added dedicated Fullscreen toggle button on the dock to the left of Settings</li>
+          <li>Disabled accidental double-click fullscreen toggle on rapid button/seek presses</li>
+          <li>Updated media skip navigation from 7 seconds to 5 seconds across controls and shortcuts</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.4" date="2026-11-15">
       <description>
         <p>Media Player Pro v1.4 Release:</p>

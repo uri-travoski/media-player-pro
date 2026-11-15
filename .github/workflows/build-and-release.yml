@@ -102,7 +102,7 @@ jobs:
             ./packaging/flatpak/build-flatpak.sh dist || true
           fi
           if [ ! -f dist/*.flatpak ]; then
-            tar -czf dist/media-player-pro-1.4.flatpak.tar.gz packaging/flatpak data scripts config shaders Makefile src
+            tar -czf dist/media-player-pro-1.5.flatpak.tar.gz packaging/flatpak data scripts config shaders Makefile src
           fi
 
       - name: Upload Flatpak Artifact
@@ -112,7 +112,7 @@ jobs:
           path: dist/*flatpak*
 
   release:
-    name: Publish Release (v1.4)
+    name: Publish Release (v1.5)
     needs: [build-deb, build-rpm, build-appimage, build-flatpak]
     runs-on: ubuntu-24.04
     steps:
@@ -136,7 +136,7 @@ jobs:
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "refs/heads/main" ] || [ "$TAG_NAME" = "main" ]; then
-            TAG_NAME="v1.4"
+            TAG_NAME="v1.5"
           fi
 
           gh release create "$TAG_NAME" release_assets/* \
