@@ -11,3 +11,6 @@
 *.sock
 /tmp/
 .DS_Store
+__pycache__/
+*.pyc
+verification_output/

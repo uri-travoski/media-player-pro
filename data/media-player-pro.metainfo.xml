@@ -19,6 +19,19 @@
     <binary>media-player-pro</binary>
   </provides>
   <releases>
+    <release version="1.3" date="2026-11-15">
+      <description>
+        <p>Media Player Pro v1.3 Release:</p>
+        <ul>
+          <li>TrueTheater-style GPU Video Enhancement Engine: Contrast Adaptive Sharpening (CAS), Adaptive Local Tone Mapping lighting, and skin-tone protected chroma vibrance in a unified real-time GLSL master shader</li>
+          <li>Interactive Hover Tooltips: Frosted glass tooltips for all dock controls on hover</li>
+          <li>Aspect Ratio Submenu: Interactive selector with active ratio display (Auto, 16:9, 4:3, 21:9, 16:10, 1:1)</li>
+          <li>Settings Toggle: Single 1-click ON/OFF toggle for TrueTheater video enhancement, persistent across restarts</li>
+          <li>A/B Comparison Diagnostic Mode: 50% split-screen before/after shader view toggleable via Ctrl+Shift+E</li>
+          <li>Streamlined Dock: Cleaned up window controls from dock bar for distraction-free media experience</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2" date="2026-11-14">
       <description>
         <p>Media Player Pro v1.2 Release:</p>

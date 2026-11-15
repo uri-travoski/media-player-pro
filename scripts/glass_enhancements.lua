@@ -1,88 +1,198 @@
 -- Media Player Pro - glass_enhancements.lua
--- Implements 3 levels of genuine video enhancements using Deband, CAS (Contrast Adaptive Sharpening),
--- and high-fidelity chroma/luma scaling filters.
+-- Real-time, GPU-accelerated TrueTheater-style Video Enhancement Engine
+-- Features:
+--  - Upscaling & Anti-Ringing (ewa_lanczossharp + anti-ringing + deband)
+--  - Custom GLSL Master Shader (CAS Sharpening, Adaptive Tone Mapping, Skin-Protected Vibrance)
+--  - Split-Screen A/B Diagnostic Mode (50% Original / 50% Enhanced)
+--  - Persistent state in user configuration (~/.config/media-player-pro/config.json)
 
 local mp = require 'mp'
+local utils = require 'mp.utils'
 
-local current_level = 0
+local CONFIG_DIR = os.getenv("HOME") .. "/.config/media-player-pro"
+local CONFIG_FILE = CONFIG_DIR .. "/config.json"
 
-local level_names = {
-    [0] = "Off (Original)",
-    [1] = "Level 1: Balanced (Deband + CAS 0.35)",
-    [2] = "Level 2: High Clarity (Deep Deband + CAS 0.60)",
-    [3] = "Level 3: Ultra Fidelity (Ultra Deband + CAS 0.85)"
+local state = {
+    enabled = true,        -- Enabled by default as required
+    ab_test = false,       -- Split-screen comparison mode
+    shader_path = nil,
+    ab_shader_path = nil,
 }
 
-local function apply_enhancement(level)
-    current_level = level
+-- Locate shader file across installation and relative directories
+local function find_shader(filename)
+    local script_dir = mp.get_script_directory()
+    local cwd = mp.get_property("working-directory") or os.getenv("PWD") or "."
+    local candidates = {
+        script_dir and (script_dir .. "/../shaders/" .. filename),
+        script_dir and (script_dir .. "/../../shaders/" .. filename),
+        script_dir and (cwd .. "/" .. script_dir .. "/../shaders/" .. filename),
+        cwd .. "/shaders/" .. filename,
+        "/usr/share/media-player-pro/shaders/" .. filename,
+        "/usr/local/share/media-player-pro/shaders/" .. filename,
+        "/app/share/media-player-pro/shaders/" .. filename,
+        "./shaders/" .. filename,
+        "shaders/" .. filename,
+        filename
+    }
 
-    if level == 1 then
-        -- Level 1: Balanced Enhancement
-        -- Clean banding artifacts, slight adaptive sharpening
-        mp.set_property("deband", "yes")
-        mp.set_property("deband-iterations", "2")
-        mp.set_property("deband-threshold", "35")
-        mp.set_property("deband-range", "16")
-        mp.set_property("deband-grain", "5")
-        mp.commandv("vf", "set", "@mpp_cas:cas=strength=0.35")
-        pcall(function()
-            mp.set_property("cscale", "ewa_lanczos")
-            mp.set_property("dscale", "mitchell")
-        end)
-    elseif level == 2 then
-        -- Level 2: High Clarity
-        -- Deeper deband + prominent contrast-adaptive sharpening + high quality scaler
-        mp.set_property("deband", "yes")
-        mp.set_property("deband-iterations", "3")
-        mp.set_property("deband-threshold", "48")
-        mp.set_property("deband-range", "20")
-        mp.set_property("deband-grain", "8")
-        mp.commandv("vf", "set", "@mpp_cas:cas=strength=0.60")
-        pcall(function()
-            mp.set_property("scale", "ewa_lanczossharp")
-            mp.set_property("cscale", "ewa_lanczos")
-            mp.set_property("dscale", "mitchell")
-            mp.set_property("dither-depth", "auto")
-        end)
-    elseif level == 3 then
-        -- Level 3: Ultra Fidelity
-        -- Maximum quality deband + high-fidelity CAS + anti-ringing + precision dithering
-        mp.set_property("deband", "yes")
-        mp.set_property("deband-iterations", "4")
-        mp.set_property("deband-threshold", "64")
-        mp.set_property("deband-range", "24")
-        mp.set_property("deband-grain", "12")
-        mp.commandv("vf", "set", "@mpp_cas:cas=strength=0.85")
-        pcall(function()
-            mp.set_property("scale", "ewa_lanczossharp")
-            mp.set_property("scale-antiring", "0.7")
-            mp.set_property("cscale", "ewa_lanczos")
-            mp.set_property("cscale-antiring", "0.7")
-            mp.set_property("dscale", "mitchell")
-            mp.set_property("dither-depth", "auto")
-            mp.set_property("correct-downscaling", "yes")
-        end)
-    else
-        -- Level 0: Off
-        current_level = 0
-        mp.set_property("deband", "no")
-        mp.commandv("vf", "set", "")
+    for _, path in ipairs(candidates) do
+        if path then
+            local f = io.open(path, "r")
+            if f then
+                f:close()
+                return path
+            end
+        end
+    end
+    return filename
+end
+
+-- Load persistent user configuration
+local function load_config()
+    local f = io.open(CONFIG_FILE, "r")
+    if not f then return end
+    local content = f:read("*all")
+    f:close()
+    if not content or #content == 0 then return end
+    local ok, data = pcall(utils.parse_json, content)
+    if ok and data and type(data) == "table" then
+        if data.video_enhancement ~= nil then
+            state.enabled = (data.video_enhancement == true)
+        end
+    end
+end
+
+-- Save persistent user configuration
+local function save_config()
+    os.execute("mkdir -p '" .. CONFIG_DIR .. "' 2>/dev/null")
+    local current_data = {}
+    local f = io.open(CONFIG_FILE, "r")
+    if f then
+        local content = f:read("*all")
+        f:close()
+        if content and #content > 0 then
+            local ok, parsed = pcall(utils.parse_json, content)
+            if ok and parsed and type(parsed) == "table" then
+                current_data = parsed
+            end
+        end
     end
 
-    mp.set_property_native("user-data/mpp-enhancement-level", current_level)
-    mp.osd_message(string.format("✦ Video Enhancement: %s", level_names[current_level]), 2.0)
+    current_data.video_enhancement = state.enabled
+    local f_out = io.open(CONFIG_FILE, "w")
+    if f_out then
+        local ok, str = pcall(utils.format_json, current_data)
+        if ok and str then
+            f_out:write(str)
+        end
+        f_out:close()
+    end
 end
 
-local function cycle_enhancement()
-    local next_level = (current_level + 1) % 4
-    apply_enhancement(next_level)
+-- Apply video enhancement pipeline dynamically to GPU renderer
+local function apply_pipeline()
+    if not state.shader_path then
+        state.shader_path = find_shader("truetheater_enhance.glsl")
+    end
+    if not state.ab_shader_path then
+        state.ab_shader_path = find_shader("truetheater_ab_test.glsl")
+    end
+
+    -- First remove both shaders from active list
+    pcall(function()
+        mp.commandv("change-list", "glsl-shaders", "remove", state.shader_path)
+        mp.commandv("change-list", "glsl-shaders", "remove", state.ab_shader_path)
+    end)
+
+    if state.enabled then
+        local active_shader = state.ab_test and state.ab_shader_path or state.shader_path
+        pcall(function()
+            mp.commandv("change-list", "glsl-shaders", "append", active_shader)
+        end)
+
+        -- High quality upscaling, anti-ringing & deband filters
+        pcall(function()
+            mp.set_property("deband", "yes")
+            mp.set_property("deband-iterations", "2")
+            mp.set_property("deband-threshold", "35")
+            mp.set_property("deband-range", "16")
+            mp.set_property("deband-grain", "4")
+
+            mp.set_property("scale", "ewa_lanczossharp")
+            mp.set_property("cscale", "ewa_lanczossharp")
+            mp.set_property("dscale", "mitchell")
+            mp.set_property("scale-antiring", "0.7")
+            mp.set_property("cscale-antiring", "0.7")
+        end)
+    else
+        -- Revert to lightweight defaults
+        pcall(function()
+            mp.set_property("deband", "no")
+            mp.set_property("scale", "bilinear")
+            mp.set_property("cscale", "bilinear")
+            mp.set_property("scale-antiring", "0.0")
+            mp.set_property("cscale-antiring", "0.0")
+        end)
+    end
+
+    mp.set_property_native("user-data/mpp-enhancement-enabled", state.enabled)
+    mp.set_property_native("user-data/mpp-enhancement-ab", state.ab_test)
 end
 
--- Key binding to toggle / cycle enhancement levels
-mp.add_forced_key_binding("e", "glass_cycle_enhancement", cycle_enhancement)
-mp.add_forced_key_binding("E", "glass_cycle_enhancement_shift", cycle_enhancement)
+local function set_enhancement(enable, silent)
+    state.enabled = enable
+    if not enable then
+        state.ab_test = false
+    end
+    save_config()
+    apply_pipeline()
 
--- Export for OSC UI menu integration
-_G.mpp_get_enhancement_level = function() return current_level end
-_G.mpp_set_enhancement_level = apply_enhancement
-_G.mpp_cycle_enhancement = cycle_enhancement
+    if not silent then
+        local msg = state.enabled and "✦ Video Enhancement (TrueTheater): ON" or "Video Enhancement: OFF"
+        mp.osd_message(msg, 2.0)
+    end
+end
+
+local function toggle_enhancement()
+    set_enhancement(not state.enabled, false)
+end
+
+local function toggle_ab_test()
+    if not state.enabled then
+        state.enabled = true
+        state.ab_test = true
+    else
+        state.ab_test = not state.ab_test
+    end
+    save_config()
+    apply_pipeline()
+
+    local msg = state.ab_test and "✦ TrueTheater A/B Split Screen: ON (Left: Original | Right: Enhanced)" or "TrueTheater A/B Split Screen: OFF"
+    mp.osd_message(msg, 2.5)
+end
+
+-- Key Bindings
+-- Ctrl+E: Toggle Video Enhancement ON/OFF
+mp.add_forced_key_binding("ctrl+e", "glass_toggle_enhancement", toggle_enhancement)
+mp.add_forced_key_binding("ctrl+E", "glass_toggle_enhancement_upper", toggle_enhancement)
+
+-- Ctrl+Shift+E: Toggle A/B Comparison Mode
+mp.add_forced_key_binding("ctrl+shift+e", "glass_toggle_ab_test", toggle_ab_test)
+mp.add_forced_key_binding("ctrl+shift+E", "glass_toggle_ab_test_upper", toggle_ab_test)
+
+-- Re-apply pipeline when file loads
+mp.register_event("file-loaded", function()
+    apply_pipeline()
+end)
+
+-- Initialize on startup
+load_config()
+apply_pipeline()
+
+-- Export functions for UI integration
+_G.mpp_is_enhancement_enabled = function() return state.enabled end
+_G.mpp_set_enhancement = set_enhancement
+_G.mpp_toggle_enhancement = toggle_enhancement
+_G.mpp_is_ab_test_active = function() return state.ab_test end
+_G.mpp_toggle_ab_test = toggle_ab_test

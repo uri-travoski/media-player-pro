@@ -29,12 +29,21 @@ local C_TRACK_BG      = "&H3A3A3A&" -- Translucent unplayed track
 local C_HOVER_BG      = "&H281216&" -- Red-tinted glass hover
 local C_POPUP_BG      = "&H0E0A0C&" -- Deep translucent popover background
 
-local CURRENT_VERSION = "1.2"
+local CURRENT_VERSION = "1.3"
 local GITHUB_REPO     = "uri-travoski/media-player-pro"
 local DEFAULT_RELEASE_URL = "https://github.com/uri-travoski/media-player-pro/releases/latest"
 
 local HISTORY_DIR = os.getenv("HOME") .. "/.config/media-player-pro"
 local HISTORY_FILE = HISTORY_DIR .. "/watch_history.json"
+
+local aspect_ratios = {
+    { id = "-1",    short = "Auto",     name = "Auto / Original" },
+    { id = "16:9",  short = "16:9",     name = "16:9 (Widescreen)" },
+    { id = "4:3",   short = "4:3",      name = "4:3 (Standard)" },
+    { id = "21:9",  short = "21:9",     name = "21:9 (Ultrawide)" },
+    { id = "16:10", short = "16:10",    name = "16:10 (Display)" },
+    { id = "1:1",   short = "1:1",      name = "1:1 (Square)" },
+}
 
 local state = {
     visible = true,
@@ -49,7 +58,7 @@ local state = {
     
     speed_menu_open = false,
     settings_menu_open = false,
-    settings_sub_menu = nil, -- nil or 'enhance'
+    settings_sub_menu = nil, -- nil or 'aspect'
     
     duration = 0,
     time_pos = 0,
@@ -57,7 +66,9 @@ local state = {
     volume = 100,
     mute = false,
     speed = 1.0,
-    enhancement_level = 0,
+    enhancement_enabled = true,
+    ab_test_active = false,
+    aspect_ratio = "-1",
     
     update_available = false,
     latest_version = CURRENT_VERSION,
@@ -78,6 +89,16 @@ local state = {
     window_w = 1280,
     window_h = 720,
 }
+
+local function get_aspect_display()
+    local cur = state.aspect_ratio or "-1"
+    for _, opt in ipairs(aspect_ratios) do
+        if opt.id == cur then
+            return opt.short
+        end
+    end
+    return cur == "-1" and "Auto" or cur
+end
 
 local speeds = { 0.25, 0.5, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0 }
 
@@ -372,6 +393,7 @@ render = function()
     local L = get_layout()
     local ass = {}
     local function add(s) ass[#ass + 1] = s end
+    local tooltip = nil
 
     -- Base styling
     add("{\\rDefault\\an7\\pos(0,0)}")
@@ -543,6 +565,9 @@ render = function()
         ass_circle(btn_back_x, cy, 20)))
     add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
         is_back_hover and C_ACCENT or C_WHITE, ass_skip_backward(btn_back_x, cy, 14, 7)))
+    if is_back_hover then
+        tooltip = { text = "Seek -7s (Left Arrow)", x = btn_back_x, y = cy - 34 }
+    end
 
     -- Button 2: Play / Pause Center Button
     local btn_play_x = L.dock_x + 104
@@ -557,6 +582,9 @@ render = function()
         add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs20\\1c%s}%s",
             btn_play_x, cy - 1, C_WHITE, "❚❚"))
     end
+    if is_play_hover then
+        tooltip = { text = state.pause and "Play (Space)" or "Pause (Space)", x = btn_play_x, y = cy - 38 }
+    end
 
     -- Button 3: Forward Skip Button (►►) - 7s skip without text
     local btn_fwd_x = L.dock_x + 166
@@ -566,6 +594,9 @@ render = function()
         ass_circle(btn_fwd_x, cy, 20)))
     add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
         is_fwd_hover and C_ACCENT or C_WHITE, ass_skip_forward(btn_fwd_x, cy, 14, 7)))
+    if is_fwd_hover then
+        tooltip = { text = "Seek +7s (Right Arrow)", x = btn_fwd_x, y = cy - 34 }
+    end
 
     -- Button 4: Speed Play Dropup Button
     local btn_spd_x = L.dock_x + 242
@@ -578,17 +609,23 @@ render = function()
     local spd_text = string.format("%.2fx", state.speed):gsub("%.00", ""):gsub("(%..-)0+$", "%1")
     add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs13\\1c%s}%s",
         btn_spd_x, cy - 1, (is_spd_hover or state.speed_menu_open) and C_ACCENT or C_WHITE, spd_text .. " ▴"))
+    if is_spd_hover and not state.speed_menu_open then
+        tooltip = { text = "Playback Speed", x = btn_spd_x, y = cy - 34 }
+    end
 
-    -- Button 5: Volume Slider Section
-    local vol_x = L.dock_x + L.dock_w - 360
+    -- Button 5: Volume Slider Section (Streamlined layout)
+    local vol_x = L.dock_x + L.dock_w - 200
     local is_vol_icon_hover = inside(state.mouse_x, state.mouse_y, vol_x - 18, cy - 18, 36, 36)
     local vol_icon = state.mute and "🔇" or (state.volume > 50 and "🔊" or (state.volume > 0 and "🔉" or "🔈"))
     add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\fs18\\1c%s}%s",
         vol_x, cy - 1, is_vol_icon_hover and C_ACCENT or C_WHITE, vol_icon))
+    if is_vol_icon_hover then
+        tooltip = { text = state.mute and "Unmute (m)" or "Mute (m)", x = vol_x, y = cy - 34 }
+    end
 
     -- Volume Track & Handle
-    local vol_track_x = vol_x + 24
-    local vol_track_w = 90
+    local vol_track_x = vol_x + 22
+    local vol_track_w = 88
     local vol_val = state.mute and 0 or math.max(0, math.min(130, state.volume))
     local vol_ratio = math.min(1.0, vol_val / 100.0)
     local vol_fill_w = math.floor(vol_track_w * vol_ratio)
@@ -611,27 +648,14 @@ render = function()
     -- Volume percentage text
     local vol_text = string.format("%d%%", state.mute and 0 or math.floor(state.volume + 0.5))
     add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\fs12\\1c%s\\1a&H20&\\bord1\\3c&H000000&\\3a&H60&}%s",
-        vol_track_x + vol_track_w + 10, cy - 1, C_TEXT_MUTED, vol_text))
+        vol_track_x + vol_track_w + 8, cy - 1, C_TEXT_MUTED, vol_text))
 
-    -- Button 6: Window Controls (Minimise & Maximise)
-    local btn_min_x = L.dock_x + L.dock_w - 120
-    local is_min_hover = inside(state.mouse_x, state.mouse_y, btn_min_x - 18, cy - 18, 36, 36)
-    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H70&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
-        is_min_hover and C_ACCENT or C_GLASS_BORDER, is_min_hover and C_HOVER_BG or C_GLASS_BG, is_min_hover and "&H20&" or "&H80&",
-        ass_rect(btn_min_x - 16, cy - 16, 32, 32, 6)))
-    add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs18\\1c%s}%s",
-        btn_min_x, cy - 3, is_min_hover and C_ACCENT or C_WHITE, "—"))
+    if inside(state.mouse_x, state.mouse_y, vol_track_x - 6, cy - 14, vol_track_w + 12, 28) and not is_vol_icon_hover then
+        tooltip = { text = string.format("Volume: %s", vol_text), x = vol_track_x + math.floor(vol_track_w / 2), y = cy - 30 }
+    end
 
-    local btn_max_x = L.dock_x + L.dock_w - 74
-    local is_max_hover = inside(state.mouse_x, state.mouse_y, btn_max_x - 18, cy - 18, 36, 36)
-    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H70&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
-        is_max_hover and C_ACCENT or C_GLASS_BORDER, is_max_hover and C_HOVER_BG or C_GLASS_BG, is_max_hover and "&H20&" or "&H80&",
-        ass_rect(btn_max_x - 16, cy - 16, 32, 32, 6)))
-    add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\fs16\\1c%s}%s",
-        btn_max_x, cy - 1, is_max_hover and C_ACCENT or C_WHITE, "🗖"))
-
-    -- Button 7: Settings / Menu Button (Far Right)
-    local btn_menu_x = L.dock_x + L.dock_w - 28
+    -- Button 6: Settings / Menu Button (Far Right)
+    local btn_menu_x = L.dock_x + L.dock_w - 24
     local is_menu_hover = inside(state.mouse_x, state.mouse_y, btn_menu_x - 18, cy - 18, 36, 36)
     add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
         state.settings_menu_open and C_ACCENT or C_GLASS_BORDER,
@@ -640,6 +664,9 @@ render = function()
         ass_rect(btn_menu_x - 16, cy - 16, 32, 32, 6)))
     add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\fs18\\1c%s}%s",
         btn_menu_x, cy - 1, (is_menu_hover or state.settings_menu_open) and C_ACCENT or C_WHITE, "⚙"))
+    if is_menu_hover and not state.settings_menu_open then
+        tooltip = { text = "Settings", x = btn_menu_x, y = cy - 34 }
+    end
 
     -- 4. Speed Play Dropup Popover Menu
     if state.speed_menu_open then
@@ -685,22 +712,15 @@ render = function()
         add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs12\\1c%s\\1a&H40&}%s",
             pop_x + 16, pop_y + 18, C_TEXT_MUTED, "MEDIA PLAYER PRO SETTINGS"))
 
-        if state.settings_sub_menu == "enhance" then
-            -- Enhance Video Submenu
+        if state.settings_sub_menu == "aspect" then
+            -- Aspect Ratio Selection Submenu
             add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s}%s",
-                pop_x + 16, pop_y + 42, C_ACCENT, "◀ Enhance Video"))
+                pop_x + 16, pop_y + 42, C_ACCENT, "◀ Aspect Ratio"))
 
-            local enh_options = {
-                { id = 0, name = "Off (Original Video)" },
-                { id = 1, name = "Level 1: Balanced (Deband+CAS)" },
-                { id = 2, name = "Level 2: High Clarity (CAS 0.60)" },
-                { id = 3, name = "Level 3: Ultra Fidelity (CAS 0.85)" },
-            }
-
-            for idx, opt in ipairs(enh_options) do
+            for idx, opt in ipairs(aspect_ratios) do
                 local item_y = pop_y + 68 + (idx - 1) * 36
                 local is_hover = inside(state.mouse_x, state.mouse_y, pop_x + 8, item_y, pop_w - 16, 32)
-                local is_active = (state.enhancement_level == opt.id)
+                local is_active = (state.aspect_ratio == opt.id)
 
                 if is_hover or is_active then
                     add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H40&}{\\p1}%s{\\p0}",
@@ -714,13 +734,14 @@ render = function()
             end
         else
             -- Main Settings Menu Items
+            local is_enh_on = (state.enhancement_enabled ~= false)
             local items = {
                 { key = "open",    label = "📂 Open File / URL ▸", sub = "Ctrl+O" },
-                { key = "enhance", label = "✦ Enhance Video ▸", sub = string.format("Level %d", state.enhancement_level) },
+                { key = "enhance", label = "✦ Video Enhancement", sub = is_enh_on and "ON" or "OFF" },
+                { key = "aspect",  label = "📐 Aspect Ratio ▸", sub = get_aspect_display() },
                 { key = "update",  label = state.update_available and "▲ Update Available! ▸" or "🔄 Check for Updates", sub = state.update_available and (state.latest_version or "Download") or ("v" .. CURRENT_VERSION) },
                 { key = "audio",   label = "🎵 Audio Track ▸", sub = "Cycle" },
                 { key = "sub",     label = "💬 Subtitles ▸", sub = "Toggle" },
-                { key = "aspect",  label = "📐 Aspect Ratio ▸", sub = "Cycle" },
                 { key = "stats",   label = "ℹ Video Statistics", sub = "Display" },
             }
 
@@ -733,13 +754,33 @@ render = function()
                         C_HOVER_BG, ass_rect(pop_x + 8, item_y, pop_w - 16, 34, 6)))
                 end
 
+                local is_enh_highlight = (it.key == "enhance" and is_enh_on)
                 local label_color = (it.key == "update" and state.update_available) and C_ACCENT or (is_hover and C_ACCENT or C_WHITE)
+                local sub_color = is_enh_highlight and C_ACCENT or ((it.key == "update" and state.update_available) and C_ACCENT or C_TEXT_MUTED)
+
                 add(string.format("{\\an4\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs13\\1c%s}%s",
                     pop_x + 16, item_y + 17, label_color, it.label))
                 add(string.format("{\\an6\\pos(%d,%d)\\fnDejaVu Sans\\fs12\\1c%s\\1a&H30&}%s",
-                    pop_x + pop_w - 16, item_y + 17, (it.key == "update" and state.update_available) and C_ACCENT or C_TEXT_MUTED, it.sub))
+                    pop_x + pop_w - 16, item_y + 17, sub_color, it.sub))
             end
         end
+    end
+
+    -- Floating Tooltip Display (Above hovered buttons)
+    if tooltip and not state.settings_menu_open and not state.speed_menu_open and not state.active_drag and not state.resume_prompt.show then
+        local tw = math.floor(#tooltip.text * 7.2) + 20
+        local th = 22
+        local tx = tooltip.x
+        local ty = tooltip.y
+        if tx - math.floor(tw / 2) < 12 then tx = 12 + math.floor(tw / 2) end
+        if tx + math.floor(tw / 2) > state.window_w - 12 then tx = state.window_w - 12 - math.floor(tw / 2) end
+
+        -- Tooltip Pill Box
+        add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H40&\\1c%s\\1a&H14&\\blur2}{\\p1}%s{\\p0}",
+            C_ACCENT, C_POPUP_BG, ass_rect(tx - math.floor(tw / 2), ty - math.floor(th / 2), tw, th, 5)))
+        -- Tooltip Text
+        add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs11\\1c%s\\bord0}%s",
+            tx, ty, C_WHITE, tooltip.text))
     end
 
     overlay.data = table.concat(ass, "\n")
@@ -801,8 +842,8 @@ local function on_mouse_move(_, val)
             local target_sec = ratio * state.duration
             mp.commandv("seek", target_sec, "absolute")
         elseif state.active_drag == 'volume' then
-            local vol_track_x = L.dock_x + L.dock_w - 360 + 24
-            local vol_track_w = 90
+            local vol_track_x = L.dock_x + L.dock_w - 200 + 22
+            local vol_track_w = 88
             local ratio = math.max(0, math.min(1.3, (x - vol_track_x) / vol_track_w))
             local new_vol = math.floor(ratio * 100)
             mp.set_property_number("volume", new_vol)
@@ -910,22 +951,20 @@ local function on_mouse_button(table)
             local pop_y = L.dock_y - pop_h - 12
 
             if inside(x, y, pop_x, pop_y, pop_w, pop_h) then
-                if state.settings_sub_menu == "enhance" then
+                if state.settings_sub_menu == "aspect" then
                     -- Click Back
                     if inside(x, y, pop_x, pop_y + 36, pop_w, 28) then
                         state.settings_sub_menu = nil
                         render()
                         return
                     end
-                    -- Enhance levels
-                    for lvl = 0, 3 do
-                        local item_y = pop_y + 68 + lvl * 36
+                    -- Aspect ratios
+                    for idx, opt in ipairs(aspect_ratios) do
+                        local item_y = pop_y + 68 + (idx - 1) * 36
                         if inside(x, y, pop_x, item_y, pop_w, 32) then
-                            if _G.mpp_set_enhancement_level then
-                                _G.mpp_set_enhancement_level(lvl)
-                            end
-                            state.enhancement_level = lvl
-                            state.settings_menu_open = false
+                            mp.set_property("video-aspect-override", opt.id)
+                            state.aspect_ratio = opt.id
+                            mp.osd_message(string.format("Aspect Ratio: %s", opt.name), 2.0)
                             state.settings_sub_menu = nil
                             render()
                             return
@@ -933,7 +972,7 @@ local function on_mouse_button(table)
                     end
                 else
                     -- Main Settings Items
-                    local items = { "open", "enhance", "update", "audio", "sub", "aspect", "stats" }
+                    local items = { "open", "enhance", "aspect", "update", "audio", "sub", "stats" }
                     for idx, key in ipairs(items) do
                         local item_y = pop_y + 40 + (idx - 1) * 38
                         if inside(x, y, pop_x, item_y, pop_w, 34) then
@@ -941,7 +980,12 @@ local function on_mouse_button(table)
                                 open_file_dialog()
                                 state.settings_menu_open = false
                             elseif key == "enhance" then
-                                state.settings_sub_menu = "enhance"
+                                if _G.mpp_toggle_enhancement then
+                                    _G.mpp_toggle_enhancement()
+                                end
+                                state.enhancement_enabled = _G.mpp_is_enhancement_enabled and _G.mpp_is_enhancement_enabled() or not state.enhancement_enabled
+                            elseif key == "aspect" then
+                                state.settings_sub_menu = "aspect"
                             elseif key == "update" then
                                 if state.update_available then
                                     open_in_browser(state.release_url)
@@ -953,8 +997,6 @@ local function on_mouse_button(table)
                                 mp.commandv("cycle", "audio")
                             elseif key == "sub" then
                                 mp.commandv("cycle", "sub")
-                            elseif key == "aspect" then
-                                mp.commandv("cycle-values", "video-aspect-override", "16:9", "4:3", "2.35:1", "-1")
                             elseif key == "stats" then
                                 mp.commandv("script-binding", "stats/display-stats-toggle")
                             end
@@ -1033,7 +1075,7 @@ local function on_mouse_button(table)
         end
 
         -- Check Volume Mute Icon
-        local vol_x = L.dock_x + L.dock_w - 360
+        local vol_x = L.dock_x + L.dock_w - 200
         if inside(x, y, vol_x - 18, cy - 18, 36, 36) then
             mp.commandv("cycle", "mute")
             render()
@@ -1041,8 +1083,8 @@ local function on_mouse_button(table)
         end
 
         -- Check Volume Slider click/drag
-        local vol_track_x = vol_x + 24
-        local vol_track_w = 90
+        local vol_track_x = vol_x + 22
+        local vol_track_w = 88
         if inside(x, y, vol_track_x - 6, cy - 14, vol_track_w + 12, 28) then
             state.active_drag = 'volume'
             local ratio = math.max(0, math.min(1.3, (x - vol_track_x) / vol_track_w))
@@ -1052,30 +1094,8 @@ local function on_mouse_button(table)
             return
         end
 
-        -- Check Minimise Button
-        local btn_min_x = L.dock_x + L.dock_w - 120
-        if inside(x, y, btn_min_x - 18, cy - 18, 36, 36) then
-            mp.set_property_bool("window-minimized", true)
-            render()
-            return
-        end
-
-        -- Check Maximise Button
-        local btn_max_x = L.dock_x + L.dock_w - 74
-        if inside(x, y, btn_max_x - 18, cy - 18, 36, 36) then
-            local is_max = mp.get_property_bool("window-maximized", false)
-            local is_fs = mp.get_property_bool("fullscreen", false)
-            if not is_max and not is_fs then
-                mp.set_property_bool("window-maximized", true)
-            else
-                mp.commandv("cycle", "fullscreen")
-            end
-            render()
-            return
-        end
-
         -- Check Settings Button
-        local btn_menu_x = L.dock_x + L.dock_w - 28
+        local btn_menu_x = L.dock_x + L.dock_w - 24
         if inside(x, y, btn_menu_x - 18, cy - 18, 36, 36) then
             state.settings_menu_open = not state.settings_menu_open
             state.settings_sub_menu = nil
@@ -1167,8 +1187,18 @@ mp.observe_property("speed", "number", function(_, val)
     render()
 end)
 
-mp.observe_property("user-data/mpp-enhancement-level", "number", function(_, val)
-    state.enhancement_level = val or 0
+mp.observe_property("user-data/mpp-enhancement-enabled", "bool", function(_, val)
+    state.enhancement_enabled = (val ~= false)
+    render()
+end)
+
+mp.observe_property("user-data/mpp-enhancement-ab", "bool", function(_, val)
+    state.ab_test_active = val or false
+    render()
+end)
+
+mp.observe_property("video-aspect-override", "string", function(_, val)
+    state.aspect_ratio = val or "-1"
     render()
 end)
 

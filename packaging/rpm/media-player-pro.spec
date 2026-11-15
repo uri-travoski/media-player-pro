@@ -1,5 +1,5 @@
 Name:           media-player-pro
-Version:        1.2
+Version:        1.3
 Release:        1%{?dist}
 Summary:        Modern Frosted Glass Media Player based on mpv
 License:        GPLv2+
@@ -41,5 +41,11 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
 fi
 
 %changelog
-* Sat Nov 14 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.1-1
-- Media Player Pro v1.1 initial release.
+* Sun Nov 15 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.3-1
+- TrueTheater GPU video enhancement engine (CAS sharpening, adaptive lighting, skin vibrance)
+- Interactive hover tooltips for all controls
+- Interactive Aspect Ratio submenu and active ratio display
+- Streamlined playback dock and controls cleanup
+
+* Sat Nov 14 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.2-1
+- Media Player Pro v1.2 release.

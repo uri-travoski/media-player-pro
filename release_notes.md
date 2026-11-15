@@ -1,18 +1,19 @@
-### Media Player Pro v1.2
+### Media Player Pro v1.3
 
 Modern, high-performance media player based on [mpv](https://github.com/mpv-player/mpv).
 
-#### What's New in v1.2:
-- **Smart Resume Memory**: Automatically tracks the last 20 unfinished videos. Opening an unfinished video displays an interactive frosted glass prompt offering `[ ▶ Resume at MM:SS ]` or `[ ↺ Start from Beginning ]`.
-- **Vibrant Red Theme**: Replaced orange/amber with a sleek red-based color palette, glowing red seekbar line, volume slider, and scrubber thumb.
-- **100% Transparent Bottom Bar**: Eliminated the background dock pill and backdrop rectangles so video playback remains completely visible and unobstructed right to the bottom edge.
-- **Clean Media Skip Icons**: Replaced the circular arrows with dedicated double-triangle media skip glyphs (`◄◄` / `►►`), removing the text `"7s"` while retaining instant 7-second jumps.
-- **New Frosted Glass App Icon**: Frosted glass surround with a vibrant red play button.
-- **Full Wayland & X11 Dual Compatibility**: Robust GPU context prioritization (`wayland,x11egl,waylandvk,x11vk`) preventing DRM KMS conflicts across modern Linux compositors.
-- **Instant Idle Screen**: Launching with zero arguments opens directly into an elegant idle splash screen with `[ 📂 Open Media File ]`.
+#### What's New in v1.3:
+- **TrueTheater GPU Video Enhancement Engine**:
+  - **Single-Pass Master GLSL Shader** (`truetheater_enhance.glsl`): Real-time Contrast Adaptive Sharpening (CAS), Adaptive Local Tone Mapping (shadow lift & S-curve contrast without crushing blacks or clipping whites), and Skin-Tone Protected Vibrance (+4% non-skin boost while preserving natural skin tones).
+  - **Single-Click ON/OFF Setting**: Simplified Settings menu with a single `✦ Video Enhancement: ON/OFF` toggle, persistent across restarts (`~/.config/media-player-pro/config.json`).
+  - **HQ Scaling & Deband Pipeline**: Automatically engages `ewa_lanczossharp` chroma/luma scaling and deband filtering when active, reverting to lightweight defaults when off.
+  - **Keyboard Shortcuts**: `Ctrl+E` to toggle enhancement on the fly with OSD feedback; `Ctrl+Shift+E` for split-screen 50% A/B before/after diagnostic comparison mode.
+- **Interactive Button Hover Tooltips**: Floating frosted-glass tooltips appear above dock controls on mouse hover (Seek -7s, Play/Pause, Seek +7s, Playback Speed, Mute / Volume, and Settings).
+- **Interactive Aspect Ratio Submenu**: Displays the currently active aspect ratio in Settings (e.g., `Auto`, `16:9`, `4:3`, `21:9`, `16:10`, `1:1`) and provides an interactive sub-selector to choose any ratio instantly.
+- **Streamlined Control Bar**: Removed minimize/maximize window controls to provide a cleaner, distraction-free transparent playback dock.
 
 #### Included Packages:
-- **AppImage**: `Media_Player_Pro-1.2-x86_64.AppImage` (Universal portable bundle)
-- **Debian / Ubuntu**: `media-player-pro_1.2_amd64.deb`
-- **Fedora / RHEL**: `media-player-pro-1.2-1.x86_64.rpm`
-- **Flatpak**: `media-player-pro-1.2.flatpak`
+- **AppImage**: `Media_Player_Pro-1.3-x86_64.AppImage` (Universal portable bundle)
+- **Debian / Ubuntu**: `media-player-pro_1.3_amd64.deb`
+- **Fedora / RHEL**: `media-player-pro-1.3-1.x86_64.rpm`
+- **Flatpak**: `media-player-pro-1.3.flatpak.tar.gz` (and Flatpak bundle manifest)

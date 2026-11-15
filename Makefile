@@ -1,4 +1,4 @@
-CC ?= gcc
+CC = gcc
 CFLAGS ?= -O2 -Wall -Wextra -D_GNU_SOURCE
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
@@ -25,6 +25,9 @@ install: $(TARGET)
 	
 	install -d $(DESTDIR)$(DATADIR)/$(APPNAME)/config
 	install -m 644 config/*.conf $(DESTDIR)$(DATADIR)/$(APPNAME)/config/
+	
+	install -d $(DESTDIR)$(DATADIR)/$(APPNAME)/shaders
+	install -m 644 shaders/*.glsl $(DESTDIR)$(DATADIR)/$(APPNAME)/shaders/
 	
 	install -d $(DESTDIR)$(DATADIR)/applications
 	install -m 644 data/$(APPNAME).desktop $(DESTDIR)$(DATADIR)/applications/

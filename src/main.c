@@ -1,5 +1,5 @@
 /*
- * Media Player Pro (v1.2)
+ * Media Player Pro (v1.3)
  * High-performance media player with complete frosted glass skin and video enhancements.
  * Based on mpv (https://github.com/mpv-player/mpv)
  */
@@ -14,7 +14,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 
-#define VERSION "1.2"
+#define VERSION "1.3"
 #define APP_NAME "Media Player Pro"
 
 static int file_exists(const char *path) {
@@ -84,14 +84,15 @@ static void print_help(void) {
     printf("\nUsage:\n");
     printf("  media-player-pro [options] [file|URL...]\n\n");
     printf("Features:\n");
-    printf("  • Transparent seekbar & non-obstructive floating controls\n");
+    printf("  • Transparent seekbar & non-obstructive floating controls with tooltips\n");
     printf("  • Remembers last 20 unfinished videos with resume prompt\n");
     printf("  • 7-second skip backward (◄◄) / forward (►►) controls\n");
     printf("  • Speed play dropup (0.25x - 3.0x)\n");
     printf("  • Smooth volume slider & mouse wheel control\n");
     printf("  • Ctrl + Mouse Wheel zoom centered at cursor position\n");
     printf("  • Ctrl + Left Drag to pan video viewport\n");
-    printf("  • 3 Genuine Video Enhancement levels (Deband + CAS + Lanczos)\n");
+    printf("  • GPU-accelerated TrueTheater Video Enhancement (CAS + Lighting + Vibrance)\n");
+    printf("  • Interactive Aspect Ratio picker with instant ratio display\n");
     printf("  • Automatic 3-second non-touch HUD & cursor hiding during playback\n\n");
     printf("Options:\n");
     printf("  --version          Display version information\n");
