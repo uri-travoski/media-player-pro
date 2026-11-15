@@ -385,6 +385,19 @@ end
 
 -- Layout Calculation
 local function get_layout()
+    if not state.override_dims then
+        local ow = mp.get_property_number("osd-width", 0)
+        local oh = mp.get_property_number("osd-height", 0)
+        if not ow or ow <= 0 then
+            ow = mp.get_property_number("dwidth", 0)
+        end
+        if not oh or oh <= 0 then
+            oh = mp.get_property_number("dheight", 0)
+        end
+        if ow and ow > 0 then state.window_w = ow end
+        if oh and oh > 0 then state.window_h = oh end
+    end
+
     local w = state.window_w
     local h = state.window_h
     
@@ -917,11 +930,22 @@ end
 
 local function get_mouse_pos()
     local m = mp.get_property_native("mouse-pos")
-    if m and m.x and m.y then
+    if m and m.x and m.y and m.hover ~= false then
         return m.x, m.y
     end
     return state.mouse_x, state.mouse_y
 end
+
+mp.register_script_message("mpp_test_set_mouse", function(x, y)
+    state.mouse_x = tonumber(x) or 0
+    state.mouse_y = tonumber(y) or 0
+end)
+
+mp.register_script_message("mpp_test_set_dimensions", function(w, h)
+    state.window_w = tonumber(w) or state.window_w
+    state.window_h = tonumber(h) or state.window_h
+    state.override_dims = true
+end)
 
 local function on_mouse_move(_, val)
     local x, y
@@ -1223,6 +1247,68 @@ local function on_mouse_button(table)
     end
 end
 
+-- Double Click to Fullscreen (Only in area above seekbar; disabled on seekbar and below)
+local function on_mouse_dbl_click()
+    wake_up()
+    local x, y = get_mouse_pos()
+    local L = get_layout()
+
+    -- 1. Disallow double-click fullscreen on seekbar and anywhere below it
+    if y >= (L.seek_y - 18) then
+        return
+    end
+
+    -- 2. Disallow if inside Settings Popover Menu
+    if state.settings_menu_open then
+        local pop_w = 340
+        local pop_h = (state.settings_sub_menu == "aspect") and 340 or 440
+        local pop_x = math.max(16, math.min(state.window_w - pop_w - 16, L.dock_x + L.dock_w - pop_w))
+        local pop_y = math.max(16, L.dock_y - pop_h - 12)
+        if inside(x, y, pop_x, pop_y, pop_w, pop_h) then
+            return
+        end
+    end
+
+    -- 3. Disallow if inside Speed Popover Menu
+    if state.speed_menu_open then
+        local spd_pop_w = 140
+        local spd_pop_h = #speeds * 32 + 16
+        local spd_pop_x = (L.dock_x + 242) - math.floor(spd_pop_w / 2)
+        local spd_pop_y = L.dock_y - spd_pop_h - 12
+        if inside(x, y, spd_pop_x, spd_pop_y, spd_pop_w, spd_pop_h) then
+            return
+        end
+    end
+
+    -- 4. Disallow if inside Resume Prompt Card
+    if state.resume_prompt.show then
+        local rw = 480
+        local rh = 124
+        local rx = math.floor((state.window_w - rw) / 2)
+        local ry = math.min(100, math.floor(state.window_h * 0.16))
+        if inside(x, y, rx, ry, rw, rh) then
+            return
+        end
+    end
+
+    -- 5. Disallow if inside Idle Splash button
+    local is_idle = state.idle_active or (state.duration <= 0 and not mp.get_property("path"))
+    if is_idle then
+        local card_w = 480
+        local card_h = 240
+        local card_x = math.floor((state.window_w - card_w) / 2)
+        local card_y = math.floor((state.window_h - card_h) / 2) - 20
+        local cx = card_x + math.floor(card_w / 2)
+        local cy = card_y + math.floor(card_h / 2)
+        if inside(x, y, cx - 110, cy + 48, 220, 44) or inside(x, y, cx - 40, cy - 80, 80, 80) then
+            return
+        end
+    end
+
+    -- In video area strictly above seekbar: toggle fullscreen!
+    mp.commandv("cycle", "fullscreen")
+end
+
 -- Mouse Wheel Volume Controls
 local function on_wheel_up()
     wake_up()
@@ -1354,9 +1440,9 @@ end)
 
 mp.observe_property("mouse-pos", "native", on_mouse_move)
 
--- Key & Mouse Bindings (MBTN_LEFT_DBL ignored to prevent accidental fullscreen when clicking buttons fast)
+-- Key & Mouse Bindings (MBTN_LEFT_DBL triggers fullscreen only above seekbar)
 mp.add_forced_key_binding("MBTN_LEFT", "glass_mouse_click", on_mouse_button, {complex = true})
-mp.add_forced_key_binding("MBTN_LEFT_DBL", "glass_mouse_dbl_click", function() end)
+mp.add_forced_key_binding("MBTN_LEFT_DBL", "glass_mouse_dbl_click", on_mouse_dbl_click)
 mp.add_forced_key_binding("WHEEL_UP", "glass_wheel_up", on_wheel_up)
 mp.add_forced_key_binding("WHEEL_DOWN", "glass_wheel_down", on_wheel_down)
 mp.add_forced_key_binding("ctrl+o", "glass_open_file", open_file_dialog)
