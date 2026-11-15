@@ -23,6 +23,9 @@
   - `Ctrl + Mouse Wheel Down`: Zoom out from cursor position.
   - `Ctrl + Left Click Drag`: Pan the video viewport up, down, left, or right so the zoomed area can be centered.
   - `Ctrl + 0` / Middle Click: Reset zoom and pan back to 100% fit.
+- **Horizontal Flip & Rotation**:
+  - `Ctrl + 1`: Instantly flip / mirror the video horizontally using GPU shader pipeline.
+  - `Ctrl + 2`: Rotate video clockwise by 90° (cycles 0° → 90° → 180° → 270°).
 - **Instant Idle Screen**: Launching with zero arguments opens directly into an elegant splash screen with an interactive `[ 📂 Open Media File ]` dialog button.
 - **Wayland & X11 Dual Compatibility**: Seamless GPU context prioritization (`wayland,x11egl,waylandvk,x11vk`) preventing DRM KMS conflicts across modern Linux compositors.
 - **3-Second Autohide**: Controls and mouse pointer automatically fade out after 3 seconds of inactivity during playback, ensuring an immersion view. Moving the mouse instantly restores the HUD.
@@ -45,6 +48,8 @@
 | **Zoom at Cursor** | `Ctrl + Mouse Wheel Up / Down` |
 | **Pan Zoomed Video** | `Ctrl + Left Click Drag` |
 | **Reset Zoom & Pan** | `Ctrl + 0` or `Ctrl + Middle Click` |
+| **Flip Video Horizontally** | `Ctrl + 1` or Settings Menu (`⚙`) |
+| **Rotate Video 90°** | `Ctrl + 2` or Settings Menu (`⚙`) |
 | **Toggle Video Enhancement** | `Ctrl + E` or Settings Menu (`⚙`) |
 | **Split-Screen A/B Diagnostic** | `Ctrl + Shift + E` |
 | **Toggle Fullscreen** | `f` or Double Click Video |

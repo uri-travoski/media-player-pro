@@ -69,6 +69,8 @@ local state = {
     enhancement_enabled = true,
     ab_test_active = false,
     aspect_ratio = "-1",
+    flipped = false,
+    rotation = 0,
     
     update_available = false,
     latest_version = CURRENT_VERSION,
@@ -700,7 +702,7 @@ render = function()
     -- 5. Settings Popover Menu
     if state.settings_menu_open then
         local pop_w = 280
-        local pop_h = 320
+        local pop_h = (state.settings_sub_menu == "aspect") and 330 or 400
         local pop_x = L.dock_x + L.dock_w - pop_w
         local pop_y = L.dock_y - pop_h - 12
 
@@ -739,6 +741,8 @@ render = function()
                 { key = "open",    label = "📂 Open File / URL ▸", sub = "Ctrl+O" },
                 { key = "enhance", label = "✦ Video Enhancement", sub = is_enh_on and "ON" or "OFF" },
                 { key = "aspect",  label = "📐 Aspect Ratio ▸", sub = get_aspect_display() },
+                { key = "flip",    label = "🪞 Flip Horizontal", sub = state.flipped and "ON" or "OFF" },
+                { key = "rotate",  label = "↻ Rotate 90°", sub = string.format("%d°", state.rotation or 0) },
                 { key = "update",  label = state.update_available and "▲ Update Available! ▸" or "🔄 Check for Updates", sub = state.update_available and (state.latest_version or "Download") or ("v" .. CURRENT_VERSION) },
                 { key = "audio",   label = "🎵 Audio Track ▸", sub = "Cycle" },
                 { key = "sub",     label = "💬 Subtitles ▸", sub = "Toggle" },
@@ -972,7 +976,7 @@ local function on_mouse_button(table)
                     end
                 else
                     -- Main Settings Items
-                    local items = { "open", "enhance", "aspect", "update", "audio", "sub", "stats" }
+                    local items = { "open", "enhance", "aspect", "flip", "rotate", "update", "audio", "sub", "stats" }
                     for idx, key in ipairs(items) do
                         local item_y = pop_y + 40 + (idx - 1) * 38
                         if inside(x, y, pop_x, item_y, pop_w, 34) then
@@ -986,6 +990,10 @@ local function on_mouse_button(table)
                                 state.enhancement_enabled = _G.mpp_is_enhancement_enabled and _G.mpp_is_enhancement_enabled() or not state.enhancement_enabled
                             elseif key == "aspect" then
                                 state.settings_sub_menu = "aspect"
+                            elseif key == "flip" then
+                                mp.commandv("script-binding", "glass_flip_horizontal")
+                            elseif key == "rotate" then
+                                mp.commandv("script-binding", "glass_rotate_90")
                             elseif key == "update" then
                                 if state.update_available then
                                     open_in_browser(state.release_url)
@@ -1199,6 +1207,16 @@ end)
 
 mp.observe_property("video-aspect-override", "string", function(_, val)
     state.aspect_ratio = val or "-1"
+    render()
+end)
+
+mp.observe_property("user-data/mpp-flip-horizontal", "bool", function(_, val)
+    state.flipped = (val == true)
+    render()
+end)
+
+mp.observe_property("video-rotate", "number", function(_, val)
+    state.rotation = val or 0
     render()
 end)
 

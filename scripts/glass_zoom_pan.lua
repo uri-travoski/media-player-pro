@@ -1,5 +1,9 @@
 -- Media Player Pro - glass_zoom_pan.lua
--- Implements cursor-centered zoom via Ctrl+MouseWheel and video dragging/panning via Ctrl+MBTN_LEFT.
+-- Implements:
+--  - Cursor-centered zoom via Ctrl+MouseWheel and video dragging/panning via Ctrl+MBTN_LEFT
+--  - Reset Zoom & Pan via Ctrl+0 / Ctrl+MBTN_MID
+--  - Horizontal Video Flip (Mirror) via Ctrl+1 (GPU-accelerated GLSL shader)
+--  - 90-Degree Video Rotation via Ctrl+2 (Cycles 0° -> 90° -> 180° -> 270°)
 
 local mp = require 'mp'
 
@@ -9,6 +13,8 @@ local state = {
     drag_start_y = 0,
     drag_start_pan_x = 0,
     drag_start_pan_y = 0,
+    flipped = false,
+    flip_shader_path = nil,
 }
 
 local function get_viewport()
@@ -17,6 +23,73 @@ local function get_viewport()
         return nil
     end
     return dims
+end
+
+-- Locate shader file across installation and relative directories
+local function find_shader(filename)
+    local script_dir = mp.get_script_directory()
+    local cwd = mp.get_property("working-directory") or os.getenv("PWD") or "."
+    local candidates = {
+        script_dir and (script_dir .. "/../shaders/" .. filename),
+        script_dir and (script_dir .. "/../../shaders/" .. filename),
+        script_dir and (cwd .. "/" .. script_dir .. "/../shaders/" .. filename),
+        cwd .. "/shaders/" .. filename,
+        "/usr/share/media-player-pro/shaders/" .. filename,
+        "/usr/local/share/media-player-pro/shaders/" .. filename,
+        "/app/share/media-player-pro/shaders/" .. filename,
+        "./shaders/" .. filename,
+        "shaders/" .. filename,
+        filename
+    }
+
+    for _, path in ipairs(candidates) do
+        if path then
+            local f = io.open(path, "r")
+            if f then
+                f:close()
+                return path
+            end
+        end
+    end
+    return filename
+end
+
+-- Apply or remove horizontal flip shader dynamically
+local function apply_flip_shader()
+    if not state.flip_shader_path then
+        state.flip_shader_path = find_shader("flip_horizontal.glsl")
+    end
+
+    pcall(function()
+        mp.commandv("change-list", "glsl-shaders", "remove", state.flip_shader_path)
+    end)
+
+    if state.flipped then
+        pcall(function()
+            mp.commandv("change-list", "glsl-shaders", "append", state.flip_shader_path)
+        end)
+    end
+
+    mp.set_property_native("user-data/mpp-flip-horizontal", state.flipped)
+end
+
+-- Toggle Horizontal Flip (Ctrl+1)
+local function toggle_flip_horizontal()
+    state.flipped = not state.flipped
+    apply_flip_shader()
+
+    local msg = state.flipped and "✦ Flip Horizontal: ON" or "Flip Horizontal: OFF"
+    mp.osd_message(msg, 1.5)
+end
+
+-- Rotate Video by 90 Degrees Clockwise (Ctrl+2)
+local function rotate_video_90()
+    local cur_rot = mp.get_property_number("video-rotate", 0)
+    local new_rot = (cur_rot + 90) % 360
+    mp.set_property_number("video-rotate", new_rot)
+
+    local msg = (new_rot == 0) and "↻ Video Rotation: 0° (Normal)" or string.format("↻ Video Rotation: %d°", new_rot)
+    mp.osd_message(msg, 1.5)
 end
 
 -- Zoom in/out centered at cursor location
@@ -109,13 +182,37 @@ local function on_mouse_move(_, val)
     mp.set_property_number("video-pan-y", new_pan_y)
 end
 
+-- Key Bindings
+-- Ctrl+WHEEL: Cursor-Targeted Zoom
 mp.add_forced_key_binding("ctrl+WHEEL_UP", "glass_zoom_in", function() zoom_at_cursor(0.15) end)
 mp.add_forced_key_binding("ctrl+WHEEL_DOWN", "glass_zoom_out", function() zoom_at_cursor(-0.15) end)
+
+-- Ctrl+0: Reset Zoom & Pan
 mp.add_forced_key_binding("ctrl+0", "glass_zoom_reset", reset_zoom_pan)
 mp.add_forced_key_binding("ctrl+MBTN_MID", "glass_zoom_reset_mid", reset_zoom_pan)
 
+-- Ctrl+1: Flip Video Horizontally (Mirror)
+mp.add_forced_key_binding("ctrl+1", "glass_flip_horizontal", toggle_flip_horizontal)
+mp.add_forced_key_binding("ctrl+KP1", "glass_flip_horizontal_kp", toggle_flip_horizontal)
+
+-- Ctrl+2: Rotate Video by 90 Degrees Clockwise
+mp.add_forced_key_binding("ctrl+2", "glass_rotate_90", rotate_video_90)
+mp.add_forced_key_binding("ctrl+KP2", "glass_rotate_90_kp", rotate_video_90)
+
+-- Ctrl+MBTN_LEFT: Viewport Drag / Panning
 mp.add_forced_key_binding("ctrl+MBTN_LEFT", "glass_pan_drag", handle_mouse_drag, {complex = true})
 mp.observe_property("mouse-pos", "native", on_mouse_move)
 
+-- Re-apply flip shader if active when a new file loads
+mp.register_event("file-loaded", function()
+    if state.flipped then
+        apply_flip_shader()
+    end
+end)
+
+-- Global Exports for UI Integration
 _G.glass_zoom_at_cursor = zoom_at_cursor
 _G.glass_reset_zoom_pan = reset_zoom_pan
+_G.mpp_toggle_flip_horizontal = toggle_flip_horizontal
+_G.mpp_is_flipped = function() return state.flipped end
+_G.mpp_rotate_90 = rotate_video_90

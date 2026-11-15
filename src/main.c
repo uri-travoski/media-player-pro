@@ -91,6 +91,8 @@ static void print_help(void) {
     printf("  • Smooth volume slider & mouse wheel control\n");
     printf("  • Ctrl + Mouse Wheel zoom centered at cursor position\n");
     printf("  • Ctrl + Left Drag to pan video viewport\n");
+    printf("  • Ctrl + 1 to flip video horizontally (mirror)\n");
+    printf("  • Ctrl + 2 to rotate video by 90 degrees\n");
     printf("  • GPU-accelerated TrueTheater Video Enhancement (CAS + Lighting + Vibrance)\n");
     printf("  • Interactive Aspect Ratio picker with instant ratio display\n");
     printf("  • Automatic 3-second non-touch HUD & cursor hiding during playback\n\n");
