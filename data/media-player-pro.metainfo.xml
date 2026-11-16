@@ -19,6 +19,17 @@
     <binary>media-player-pro</binary>
   </provides>
   <releases>
+    <release version="1.8" date="2026-11-16">
+      <description>
+        <p>Media Player Pro v1.8 Release:</p>
+        <ul>
+          <li>Integrated native open/pick file dialog across all major Linux desktops (Wayland and X11)</li>
+          <li>Intelligent desktop detection: native kdialog on KDE Plasma, native zenity and XDG Desktop Portal on GNOME, Cinnamon, MATE, XFCE, and Wayland compositors</li>
+          <li>Comprehensive media file filters and contextual start directory navigation</li>
+          <li>Robust error-handling and fallback cascade ensuring reliable file picking across all distros</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.7" date="2026-11-16">
       <description>
         <p>Media Player Pro v1.7 Release:</p>

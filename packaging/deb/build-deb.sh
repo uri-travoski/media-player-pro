@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="1.7"
+VERSION="1.8"
 ARCH="amd64"
 OUTPUT_DIR="${1:-$(pwd)/dist}"
 mkdir -p "$OUTPUT_DIR"
@@ -22,11 +22,11 @@ Version: ${VERSION}
 Section: video
 Priority: optional
 Architecture: ${ARCH}
-Depends: mpv (>= 0.30.0), fonts-dejavu-core
+Depends: mpv (>= 0.30.0), fonts-dejavu-core, zenity | kdialog
 Maintainer: Uri Travoski <uri-travoski@users.noreply.github.com>
 Description: Media Player Pro - Modern Frosted Glass Media Player
  Media Player Pro is a high-performance media player based on mpv with
- a complete transparent/frosted glass skin, 7-second skip buttons,
+ a complete transparent/frosted glass skin, 5-second skip buttons,
  speed dropup presets, cursor-targeted zoom and dragging, and genuine
  video enhancements (deband + AMD FidelityFX Contrast Adaptive Sharpening).
 EOF

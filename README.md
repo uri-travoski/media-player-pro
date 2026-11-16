@@ -1,4 +1,4 @@
-# Media Player Pro (v1.7)
+# Media Player Pro (v1.8)
 
 > **Media Player Pro** is a modern, high-performance Linux media player built on top of [mpv](https://github.com/mpv-player/mpv), featuring a sleek transparent skin with vibrant red accents, non-obstructive floating playback controls, watch history memory with interactive resume, cursor-targeted zoom/pan, interactive hover tooltips, aspect ratio picker, and a real-time TrueTheater GPU video enhancement engine.
 
@@ -64,25 +64,25 @@ Media Player Pro is distributed in 4 universal packaging formats available from 
 
 ### 1. AppImage (Universal Linux)
 ```bash
-chmod +x Media_Player_Pro-1.7-x86_64.AppImage
-./Media_Player_Pro-1.7-x86_64.AppImage video.mp4
+chmod +x Media_Player_Pro-1.8-x86_64.AppImage
+./Media_Player_Pro-1.8-x86_64.AppImage video.mp4
 ```
 
 ### 2. Debian / Ubuntu (.deb)
 ```bash
-sudo dpkg -i media-player-pro_1.7_amd64.deb
+sudo dpkg -i media-player-pro_1.8_amd64.deb
 sudo apt-get install -f
 ```
 
 ### 3. Fedora / RHEL (.rpm)
 ```bash
-sudo rpm -ivh media-player-pro-1.7-1.x86_64.rpm
+sudo rpm -ivh media-player-pro-1.8-1.x86_64.rpm
 ```
 
 ### 4. Flatpak Bundle
 ```bash
-flatpak install media-player-pro-1.7.flatpak
-# or extract media-player-pro-1.7.flatpak.tar.gz
+flatpak install media-player-pro-1.8.flatpak
+# or extract media-player-pro-1.8.flatpak.tar.gz
 flatpak run org.mediaplayerpro.MediaPlayerPro video.mp4
 ```
 

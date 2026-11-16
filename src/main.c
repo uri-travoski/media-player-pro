@@ -1,5 +1,5 @@
 /*
- * Media Player Pro (v1.7)
+ * Media Player Pro (v1.8)
  * High-performance media player with complete frosted glass skin and video enhancements.
  * Based on mpv (https://github.com/mpv-player/mpv)
  */
@@ -14,7 +14,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 
-#define VERSION "1.7"
+#define VERSION "1.8"
 #define APP_NAME "Media Player Pro"
 
 static int file_exists(const char *path) {

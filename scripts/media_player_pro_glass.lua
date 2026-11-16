@@ -29,7 +29,7 @@ local C_TRACK_BG      = "&H3A3A3A&" -- Translucent unplayed track
 local C_HOVER_BG      = "&H281216&" -- Red-tinted glass hover
 local C_POPUP_BG      = "&H0E0A0C&" -- Deep translucent popover background
 
-local CURRENT_VERSION = "1.7"
+local CURRENT_VERSION = "1.8"
 local GITHUB_REPO     = "uri-travoski/media-player-pro"
 local DEFAULT_RELEASE_URL = "https://github.com/uri-travoski/media-player-pro/releases/latest"
 
@@ -179,35 +179,157 @@ local function update_playback_position()
 end
 
 -- --------------------------------------------------------------------------
--- File Dialog & Updates
+-- Native Open File Dialog System (Cross-Desktop, Wayland & X11)
 -- --------------------------------------------------------------------------
-local function open_file_dialog()
-    mp.osd_message("Opening file chooser...", 2.0)
-    local py_code = "import tkinter.filedialog as fd, sys; path = fd.askopenfilename(title='Media Player Pro - Choose Media'); sys.stdout.write(path)"
-    mp.command_native_async({
+local is_file_dialog_active = false
+
+local function get_default_start_dir()
+    local path = mp.get_property("path")
+    if path and not path:find("://") then
+        local dir = path:match("^(.*)/")
+        if dir and #dir > 0 then
+            return dir .. "/"
+        end
+    end
+    local home = os.getenv("HOME") or "/"
+    local v_dir = home .. "/Videos"
+    local f = io.open(v_dir, "r")
+    if f then
+        f:close()
+        return v_dir .. "/"
+    end
+    return home .. "/"
+end
+
+local function get_file_dialog_candidates()
+    local desktop = (os.getenv("XDG_CURRENT_DESKTOP") or ""):upper()
+    local session = (os.getenv("DESKTOP_SESSION") or ""):upper()
+    local is_kde = desktop:find("KDE") ~= nil or session:find("KDE") ~= nil or session:find("PLASMA") ~= nil
+    local start_dir = get_default_start_dir()
+
+    local media_filter_zenity = "Media Files | *.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv *.m4v *.ts *.m2ts *.vob *.mpg *.mpeg *.mp3 *.flac *.wav *.ogg *.m4a *.opus *.aac *.alac *.wma *.m3u *.m3u8"
+    local media_filter_kdialog = "Media Files (*.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv *.m4v *.ts *.m2ts *.vob *.mpg *.mpeg *.mp3 *.flac *.wav *.ogg *.m4a *.opus *.aac *.alac *.wma *.m3u *.m3u8);;All Files (*)"
+
+    local zenity_cmd = {
+        name = "subprocess",
+        args = {
+            "zenity",
+            "--file-selection",
+            "--title=Media Player Pro - Choose Media",
+            "--filename=" .. start_dir,
+            "--file-filter=" .. media_filter_zenity,
+            "--file-filter=All Files | *"
+        },
+        capture_stdout = true,
+        playback_only = false
+    }
+
+    local kdialog_cmd = {
+        name = "subprocess",
+        args = {
+            "kdialog",
+            "--title", "Media Player Pro - Choose Media",
+            "--getopenfilename",
+            start_dir,
+            media_filter_kdialog
+        },
+        capture_stdout = true,
+        playback_only = false
+    }
+
+    local yad_cmd = {
+        name = "subprocess",
+        args = {
+            "yad",
+            "--file",
+            "--title=Media Player Pro - Choose Media",
+            "--filename=" .. start_dir,
+            "--file-filter=" .. media_filter_zenity,
+            "--file-filter=All Files | *"
+        },
+        capture_stdout = true,
+        playback_only = false
+    }
+
+    local py_code = "import sys\n" ..
+        "try:\n" ..
+        "    import tkinter as tk\n" ..
+        "    from tkinter import filedialog as fd\n" ..
+        "    root = tk.Tk()\n" ..
+        "    root.withdraw()\n" ..
+        "    root.attributes('-topmost', True)\n" ..
+        "    f = fd.askopenfilename(\n" ..
+        "        title='Media Player Pro - Choose Media',\n" ..
+        "        initialdir='" .. start_dir:gsub("'", "\\'") .. "',\n" ..
+        "        filetypes=[\n" ..
+        "            ('Media Files', '*.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv *.m4v *.ts *.m2ts *.vob *.mpg *.mpeg *.mp3 *.flac *.wav *.ogg *.m4a *.opus *.aac *.alac *.wma *.m3u *.m3u8'),\n" ..
+        "            ('All Files', '*.*')\n" ..
+        "        ]\n" ..
+        "    )\n" ..
+        "    root.destroy()\n" ..
+        "    if f:\n" ..
+        "        sys.stdout.write(f)\n" ..
+        "except Exception:\n" ..
+        "    sys.exit(2)\n"
+
+    local python_cmd = {
         name = "subprocess",
         args = { "python3", "-c", py_code },
-        capture_stdout = true
-    }, function(success, res)
-        if success and res and res.status == 0 and res.stdout and #res.stdout > 0 then
-            local p = res.stdout:gsub("^%s+", ""):gsub("%s+$", "")
-            if #p > 0 then
-                mp.commandv("loadfile", p)
+        capture_stdout = true,
+        playback_only = false
+    }
+
+    if is_kde then
+        return { kdialog_cmd, zenity_cmd, yad_cmd, python_cmd }
+    else
+        return { zenity_cmd, kdialog_cmd, yad_cmd, python_cmd }
+    end
+end
+
+local function execute_dialog_cascade(candidates, index)
+    if index > #candidates then
+        is_file_dialog_active = false
+        mp.osd_message("No supported file chooser found (please install zenity or kdialog)", 4.0)
+        return
+    end
+
+    local candidate = candidates[index]
+    mp.command_native_async(candidate, function(success, res)
+        local failed = (not success) or (not res) or (res.status and res.status < 0) or (res.error_string == "init")
+        if not failed and candidate.args and candidate.args[1] == "python3" and res.status == 2 then
+            failed = true
+        end
+
+        if failed then
+            execute_dialog_cascade(candidates, index + 1)
+            return
+        end
+
+        is_file_dialog_active = false
+
+        if res.status == 0 and res.stdout and #res.stdout > 0 then
+            local path = res.stdout:gsub("^%s+", ""):gsub("%s+$", "")
+            if #path > 0 then
+                mp.commandv("loadfile", path)
+                mp.set_property_bool("pause", false)
             end
-        else
-            mp.command_native_async({
-                name = "subprocess",
-                args = { "zenity", "--file-selection", "--title=Media Player Pro - Choose Media" },
-                capture_stdout = true
-            }, function(s2, r2)
-                if s2 and r2 and r2.status == 0 and r2.stdout and #r2.stdout > 0 then
-                    local p2 = r2.stdout:gsub("^%s+", ""):gsub("%s+$", "")
-                    if #p2 > 0 then mp.commandv("loadfile", p2) end
-                end
-            end)
         end
     end)
 end
+
+local function open_file_dialog()
+    if is_file_dialog_active then
+        return
+    end
+    is_file_dialog_active = true
+    mp.osd_message("Opening media chooser...", 1.5)
+    local candidates = get_file_dialog_candidates()
+    execute_dialog_cascade(candidates, 1)
+end
+
+mp.register_script_message("mpp_test_open_file", function()
+    open_file_dialog()
+end)
 
 local function open_in_browser(url)
     url = url or state.release_url or DEFAULT_RELEASE_URL

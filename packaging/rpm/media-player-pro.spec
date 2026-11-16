@@ -1,5 +1,5 @@
 Name:           media-player-pro
-Version:        1.7
+Version:        1.8
 Release:        1%{?dist}
 Summary:        Modern Frosted Glass Media Player based on mpv
 License:        GPLv2+
@@ -7,6 +7,7 @@ URL:            https://github.com/uri-travoski/media-player-pro
 Source0:        media-player-pro-%{version}.tar.gz
 BuildArch:      x86_64
 Requires:       mpv, dejavu-sans-fonts
+Recommends:     zenity, kdialog
 
 %description
 Media Player Pro is a high-performance media player based on mpv with
@@ -41,6 +42,12 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
 fi
 
 %changelog
+* Mon Nov 16 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.8-1
+- Integrated native open/pick file dialog across all major Linux desktops (Wayland & X11)
+- Automatic desktop detection: native kdialog on KDE Plasma, native zenity/portal on GNOME/Cinnamon/Wayland
+- Added comprehensive media file type filters and smart directory navigation
+- Added fallback cascading across zenity, kdialog, yad, and properly initialized Python
+
 * Mon Nov 16 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.7-1
 - Matched remaining play time text color, font weight, and styling with played time
 - Streamlined playback dock: removed fullscreen icon button in favor of double-click and keyboard toggle
