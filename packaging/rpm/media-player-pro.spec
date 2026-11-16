@@ -1,5 +1,5 @@
 Name:           media-player-pro
-Version:        1.6
+Version:        1.7
 Release:        1%{?dist}
 Summary:        Modern Frosted Glass Media Player based on mpv
 License:        GPLv2+
@@ -11,7 +11,7 @@ Requires:       mpv, dejavu-sans-fonts
 %description
 Media Player Pro is a high-performance media player based on mpv with
 a complete transparent/frosted glass skin, 5-second skip buttons,
-dedicated fullscreen toggle, speed dropup presets, cursor-targeted zoom and dragging,
+speed dropup presets, cursor-targeted zoom and dragging,
 and genuine video enhancements (deband + AMD FidelityFX Contrast Adaptive Sharpening).
 
 %prep
@@ -41,6 +41,11 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
 fi
 
 %changelog
+* Mon Nov 16 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.7-1
+- Matched remaining play time text color, font weight, and styling with played time
+- Streamlined playback dock: removed fullscreen icon button in favor of double-click and keyboard toggle
+- Re-centered and polished volume slider and dock layout
+
 * Mon Nov 16 2026 Uri Travoski <uri-travoski@users.noreply.github.com> - 1.6-1
 - Enabled double-click to toggle fullscreen strictly in video area above seekbar
 - Suppressed double-click fullscreen on seekbar, dock controls, and popover menus

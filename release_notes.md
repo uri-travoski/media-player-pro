@@ -1,23 +1,21 @@
-### Media Player Pro v1.6
+### Media Player Pro v1.7
 
 Modern, high-performance media player based on [mpv](https://github.com/mpv-player/mpv).
 
-#### What's New in v1.6:
-- **Double-Click Fullscreen Strictly Above Seek Bar**:
-  - Double-clicking within the video viewport above the seek bar seamlessly toggles fullscreen on and off.
-  - Double-clicking is suppressed on the seek bar, time display, and all lower dock controls (`◄◄`, `►►`, play/pause, volume, speed, settings, fullscreen buttons). Users can click seek and playback buttons rapidly and continuously without accidentally triggering fullscreen.
-  - Dynamically adapts to window resizing and full-screen state transitions.
-  - Double-clicks inside open menus (Settings popover, Speed selector, Resume playback prompt, Idle splash card) are prevented from toggling fullscreen.
-- **Direct GitHub Update Button**:
-  - Added a dedicated "⤓ Download Latest Update" option under the Settings menu.
-  - Directly opens the official GitHub releases page in the user's default browser with full cross-platform fallback support (`xdg-open` / `gio open`).
-- **Includes All v1.5 Capabilities**:
-  - Dedicated frosted-glass Fullscreen button on the dock left of Settings.
+#### What's New in v1.7:
+- **Remaining Play Time Text Style & Color Match**:
+  - The remaining play time text (`Remaining MM:SS` on the right side of the seekbar) now matches the played elapsed time text (`MM:SS` on the left) in crisp pure white bold font (`#FFFFFF`) with legible drop shadows.
+- **Streamlined Playback Dock**:
+  - Removed the standalone fullscreen icon button from the dock to eliminate clutter. Fullscreen is seamlessly toggled via double-clicking anywhere in the video canvas above the seekbar or via keyboard shortcuts (`f` / `ESC`).
+  - Balanced dock layout and volume slider positioning for a clean, minimalist interface.
+- **Includes All Previous Capabilities**:
+  - Double-click to toggle fullscreen strictly in video area above the seekbar (suppressed on seekbar, dock controls, and popups).
+  - Dedicated "⤓ Download Latest Update" option under Settings menu.
   - 5-second precision media skipping (`◄◄ 5s` / `5s ►►`).
   - TrueTheater GPU Video Enhancement (AMD CAS sharpening + local tone mapping).
 
 #### Included Packages:
-- **AppImage**: `Media_Player_Pro-1.6-x86_64.AppImage` (Universal portable bundle)
-- **Debian / Ubuntu**: `media-player-pro_1.6_amd64.deb`
-- **Fedora / RHEL**: `media-player-pro-1.6-1.x86_64.rpm`
-- **Flatpak**: `media-player-pro-1.6.flatpak.tar.gz` (and Flatpak bundle manifest)
+- **AppImage**: `Media_Player_Pro-1.7-x86_64.AppImage` (Universal portable bundle)
+- **Debian / Ubuntu**: `media-player-pro_1.7_amd64.deb`
+- **Fedora / RHEL**: `media-player-pro-1.7-1.x86_64.rpm`
+- **Flatpak**: `media-player-pro-1.7.flatpak.tar.gz` (and Flatpak bundle manifest)

@@ -19,6 +19,16 @@
     <binary>media-player-pro</binary>
   </provides>
   <releases>
+    <release version="1.7" date="2026-11-16">
+      <description>
+        <p>Media Player Pro v1.7 Release:</p>
+        <ul>
+          <li>Matched remaining play time text color, font weight, and styling with played elapsed time</li>
+          <li>Streamlined playback dock layout: removed fullscreen icon button in favor of video double-click and keyboard toggling</li>
+          <li>Optimized volume slider position and control alignment</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.6" date="2026-11-16">
       <description>
         <p>Media Player Pro v1.6 Release:</p>

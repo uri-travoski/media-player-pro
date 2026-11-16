@@ -1,4 +1,4 @@
-# Media Player Pro (v1.6)
+# Media Player Pro (v1.7)
 
 > **Media Player Pro** is a modern, high-performance Linux media player built on top of [mpv](https://github.com/mpv-player/mpv), featuring a sleek transparent skin with vibrant red accents, non-obstructive floating playback controls, watch history memory with interactive resume, cursor-targeted zoom/pan, interactive hover tooltips, aspect ratio picker, and a real-time TrueTheater GPU video enhancement engine.
 
@@ -7,7 +7,7 @@
 ## ✨ Key Features
 
 - **100% Transparent Floating HUD**: Non-obstructive floating playback controls and transparent seek bar with glowing red progress line and scrubber thumb, keeping video completely unobstructed right to the bottom edge.
-- **Interactive Button Hover Tooltips**: Floating frosted-glass tooltips dynamically display control labels above buttons when hovered (Seek -5s, Play/Pause, Seek +5s, Speed, Mute/Volume, Fullscreen, Settings).
+- **Interactive Button Hover Tooltips**: Floating frosted-glass tooltips dynamically display control labels above buttons when hovered (Seek -5s, Play/Pause, Seek +5s, Speed, Mute/Volume, Settings).
 - **TrueTheater GPU Video Enhancement Engine**:
   - **Single-Pass Master GLSL Shader** (`truetheater_enhance.glsl`): Real-time Contrast Adaptive Sharpening (CAS), Adaptive Local Tone Mapping (shadow lift & S-curve contrast without crushing blacks or clipping whites), and Skin-Tone Protected Vibrance.
   - **Single ON/OFF Setting**: One-click toggle in Settings, persistent across restarts (`~/.config/media-player-pro/config.json`).
@@ -17,7 +17,7 @@
 - **Smart Resume Memory**: Automatically tracks the last 20 unfinished videos. Opening an unfinished video displays an interactive frosted glass prompt offering `[ ▶ Resume at MM:SS ]` or `[ ↺ Start from Beginning ]` (or press `Enter` / `Home` / `Esc`).
 - **Precision 5s Media Skip Controls**: Dedicated media skip backward (`◄◄`) and forward (`►►`) buttons for instant 5-second jumps.
 - **Speed Play Dropup**: Instant playback rate switching with `0.25x`, `0.5x`, `1.0x (Normal)`, `1.25x`, `1.5x`, `2.0x`, `2.5x`, and `3.0x` presets with red accent highlights.
-- **Dedicated Fullscreen Toggle**: One-click dock button to toggle fullscreen mode smoothly with dynamic enter/exit vector icons.
+- **Double-Click Fullscreen**: Seamlessly toggle fullscreen mode by double-clicking anywhere in the video canvas above the seekbar, or via keyboard shortcut (`f` / `ESC`). Accidental double-click fullscreen on seek and dock buttons is strictly suppressed.
 - **Smooth Volume Slider**: Bottom-right volume track with interactive glowing red handle, percentage readout, mute toggle, and mouse wheel volume adjustments.
 - **Cursor-Targeted Video Zoom & Pan**:
   - `Ctrl + Mouse Wheel Up`: Smoothly zoom into the exact point where the mouse cursor is located.
@@ -53,8 +53,8 @@
 | **Rotate Video 90°** | `Ctrl + 2` or Settings Menu (`⚙`) |
 | **Toggle Video Enhancement** | `Ctrl + E` or Settings Menu (`⚙`) |
 | **Split-Screen A/B Diagnostic** | `Ctrl + Shift + E` |
-| **Toggle Fullscreen** | Double-Click Video (Above Seekbar) / Fullscreen Button / `f` |
-| **Exit Fullscreen** | Double-Click Video / Fullscreen Button / `ESC` |
+| **Toggle Fullscreen** | Double-Click Video (Above Seekbar) / `f` |
+| **Exit Fullscreen** | Double-Click Video / `ESC` |
 
 ---
 
@@ -64,25 +64,25 @@ Media Player Pro is distributed in 4 universal packaging formats available from 
 
 ### 1. AppImage (Universal Linux)
 ```bash
-chmod +x Media_Player_Pro-1.6-x86_64.AppImage
-./Media_Player_Pro-1.6-x86_64.AppImage video.mp4
+chmod +x Media_Player_Pro-1.7-x86_64.AppImage
+./Media_Player_Pro-1.7-x86_64.AppImage video.mp4
 ```
 
 ### 2. Debian / Ubuntu (.deb)
 ```bash
-sudo dpkg -i media-player-pro_1.6_amd64.deb
+sudo dpkg -i media-player-pro_1.7_amd64.deb
 sudo apt-get install -f
 ```
 
 ### 3. Fedora / RHEL (.rpm)
 ```bash
-sudo rpm -ivh media-player-pro-1.6-1.x86_64.rpm
+sudo rpm -ivh media-player-pro-1.7-1.x86_64.rpm
 ```
 
 ### 4. Flatpak Bundle
 ```bash
-flatpak install media-player-pro-1.6.flatpak
-# or extract media-player-pro-1.6.flatpak.tar.gz
+flatpak install media-player-pro-1.7.flatpak
+# or extract media-player-pro-1.7.flatpak.tar.gz
 flatpak run org.mediaplayerpro.MediaPlayerPro video.mp4
 ```
 

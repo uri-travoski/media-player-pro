@@ -29,7 +29,7 @@ local C_TRACK_BG      = "&H3A3A3A&" -- Translucent unplayed track
 local C_HOVER_BG      = "&H281216&" -- Red-tinted glass hover
 local C_POPUP_BG      = "&H0E0A0C&" -- Deep translucent popover background
 
-local CURRENT_VERSION = "1.6"
+local CURRENT_VERSION = "1.7"
 local GITHUB_REPO     = "uri-travoski/media-player-pro"
 local DEFAULT_RELEASE_URL = "https://github.com/uri-travoski/media-player-pro/releases/latest"
 
@@ -356,33 +356,6 @@ local function ass_skip_forward(cx, cy, w, h)
     return t1 .. " " .. t2
 end
 
--- Fullscreen / Exit-Fullscreen Vector Icon
-local function ass_fullscreen_icon(cx, cy, is_fs)
-    if is_fs then
-        -- Exit Fullscreen: 4 corner brackets pointing inward toward center
-        local t1 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
-            cx - 2, cy - 2, cx - 7, cy - 2, cx - 7, cy - 4, cx - 4, cy - 4, cx - 4, cy - 7, cx - 2, cy - 7)
-        local t2 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
-            cx + 2, cy - 2, cx + 7, cy - 2, cx + 7, cy - 4, cx + 4, cy - 4, cx + 4, cy - 7, cx + 2, cy - 7)
-        local t3 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
-            cx - 2, cy + 2, cx - 7, cy + 2, cx - 7, cy + 4, cx - 4, cy + 4, cx - 4, cy + 7, cx - 2, cy + 7)
-        local t4 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
-            cx + 2, cy + 2, cx + 7, cy + 2, cx + 7, cy + 4, cx + 4, cy + 4, cx + 4, cy + 7, cx + 2, cy + 7)
-        return t1 .. " " .. t2 .. " " .. t3 .. " " .. t4
-    else
-        -- Enter Fullscreen: 4 corner brackets pointing outward
-        local t1 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
-            cx - 7, cy - 7, cx - 2, cy - 7, cx - 2, cy - 5, cx - 5, cy - 5, cx - 5, cy - 2, cx - 7, cy - 2)
-        local t2 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
-            cx + 7, cy - 7, cx + 2, cy - 7, cx + 2, cy - 5, cx + 5, cy - 5, cx + 5, cy - 2, cx + 7, cy - 2)
-        local t3 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
-            cx - 7, cy + 7, cx - 2, cy + 7, cx - 2, cy + 5, cx - 5, cy + 5, cx - 5, cy + 2, cx - 7, cy + 2)
-        local t4 = string.format("m %d %d l %d %d l %d %d l %d %d l %d %d l %d %d",
-            cx + 7, cy + 7, cx + 2, cy + 7, cx + 2, cy + 5, cx + 5, cy + 5, cx + 5, cy + 2, cx + 7, cy + 2)
-        return t1 .. " " .. t2 .. " " .. t3 .. " " .. t4
-    end
-end
-
 -- Layout Calculation
 local function get_layout()
     if not state.override_dims then
@@ -565,10 +538,10 @@ render = function()
     add(string.format("{\\an7\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s\\1a&H00&\\bord1.5\\3c&H000000&\\3a&H50&}%s",
         L.seek_x, L.seek_y - 18, C_WHITE, cur_time_str))
 
-    -- Remaining Time (Right) with drop shadow
+    -- Remaining Time (Right) with drop shadow - matches played time text color and styling
     local rem_time_str = "Remaining " .. format_time(dur - state.time_pos)
-    add(string.format("{\\an9\\pos(%d,%d)\\fnDejaVu Sans\\fs14\\1c%s\\1a&H10&\\bord1.5\\3c&H000000&\\3a&H50&}%s",
-        L.seek_x + L.seek_w, L.seek_y - 18, C_TEXT_MUTED, rem_time_str))
+    add(string.format("{\\an9\\pos(%d,%d)\\fnDejaVu Sans\\b1\\fs14\\1c%s\\1a&H00&\\bord1.5\\3c&H000000&\\3a&H50&}%s",
+        L.seek_x + L.seek_w, L.seek_y - 18, C_WHITE, rem_time_str))
 
     -- Unplayed Track (Thin Translucent Glass Line)
     add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H90&}{\\p1}%s{\\p0}",
@@ -665,7 +638,7 @@ render = function()
     end
 
     -- Button 5: Volume Slider Section (Streamlined layout)
-    local vol_x = L.dock_x + L.dock_w - 240
+    local vol_x = L.dock_x + L.dock_w - 200
     local is_vol_icon_hover = inside(state.mouse_x, state.mouse_y, vol_x - 18, cy - 18, 36, 36)
     local vol_icon = state.mute and "🔇" or (state.volume > 50 and "🔊" or (state.volume > 0 and "🔉" or "🔈"))
     add(string.format("{\\an5\\pos(%d,%d)\\fnDejaVu Sans\\fs18\\1c%s}%s",
@@ -705,23 +678,8 @@ render = function()
         tooltip = { text = string.format("Volume: %s", vol_text), x = vol_track_x + math.floor(vol_track_w / 2), y = cy - 30 }
     end
 
-    -- Button 6: Fullscreen Toggle Button (Left of Settings Button)
-    local btn_fs_x = L.dock_x + L.dock_w - 60
-    local is_fs_hover = inside(state.mouse_x, state.mouse_y, btn_fs_x - 18, cy - 18, 36, 36)
-    add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
-        is_fs_hover and C_ACCENT or C_GLASS_BORDER,
-        is_fs_hover and C_HOVER_BG or C_GLASS_BG,
-        is_fs_hover and "&H10&" or "&H80&",
-        ass_rect(btn_fs_x - 16, cy - 16, 32, 32, 6)))
-    add(string.format("{\\pos(0,0)\\bord0\\shad0\\1c%s\\1a&H00&}{\\p1}%s{\\p0}",
-        is_fs_hover and C_ACCENT or C_WHITE,
-        ass_fullscreen_icon(btn_fs_x, cy, state.fullscreen)))
-    if is_fs_hover then
-        tooltip = { text = state.fullscreen and "Exit Fullscreen (ESC / f)" or "Fullscreen (f)", x = btn_fs_x, y = cy - 34 }
-    end
-
-    -- Button 7: Settings / Menu Button (Far Right)
-    local btn_menu_x = L.dock_x + L.dock_w - 22
+    -- Button 6: Settings / Menu Button (Far Right)
+    local btn_menu_x = L.dock_x + L.dock_w - 24
     local is_menu_hover = inside(state.mouse_x, state.mouse_y, btn_menu_x - 18, cy - 18, 36, 36)
     add(string.format("{\\pos(0,0)\\bord1\\3c%s\\3a&H50&\\1c%s\\1a%s\\blur1}{\\p1}%s{\\p0}",
         state.settings_menu_open and C_ACCENT or C_GLASS_BORDER,
@@ -967,7 +925,7 @@ local function on_mouse_move(_, val)
             local target_sec = ratio * state.duration
             mp.commandv("seek", target_sec, "absolute")
         elseif state.active_drag == 'volume' then
-            local vol_track_x = L.dock_x + L.dock_w - 240 + 22
+            local vol_track_x = L.dock_x + L.dock_w - 200 + 22
             local vol_track_w = 88
             local ratio = math.max(0, math.min(1.3, (x - vol_track_x) / vol_track_w))
             local new_vol = math.floor(ratio * 100)
@@ -1203,7 +1161,7 @@ local function on_mouse_button(table)
         end
 
         -- Check Volume Mute Icon
-        local vol_x = L.dock_x + L.dock_w - 240
+        local vol_x = L.dock_x + L.dock_w - 200
         if inside(x, y, vol_x - 18, cy - 18, 36, 36) then
             mp.commandv("cycle", "mute")
             render()
@@ -1222,16 +1180,8 @@ local function on_mouse_button(table)
             return
         end
 
-        -- Check Fullscreen Button (left of Settings)
-        local btn_fs_x = L.dock_x + L.dock_w - 60
-        if inside(x, y, btn_fs_x - 18, cy - 18, 36, 36) then
-            mp.commandv("cycle", "fullscreen")
-            render()
-            return
-        end
-
         -- Check Settings Button
-        local btn_menu_x = L.dock_x + L.dock_w - 22
+        local btn_menu_x = L.dock_x + L.dock_w - 24
         if inside(x, y, btn_menu_x - 18, cy - 18, 36, 36) then
             state.settings_menu_open = not state.settings_menu_open
             state.settings_sub_menu = nil
